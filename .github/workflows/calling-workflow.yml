@@ -6,30 +6,24 @@ on:
       slot-name:
         description: |
           Azure deployment slot:
-          - Enter "staging", "test", or any custom slot
-          - Approval is required for all deployments
+          - Leave blank for Production
+          - Or enter "staging", "test", etc.
         required: false
         default: ""
       swap-to-prod:
         description: "Swap to Production after deploying to slot?"
+        type: boolean
         required: false
-        type: choice
-        options:
-          - "true"
-          - "false"
-        default: "false"
+        default: false
       swap-only:
         description: "Skip deploy, only swap existing slot to Production?"
+        type: boolean
         required: false
-        type: choice
-        options:
-          - "true"
-          - "false"
-        default: "false"
+        default: false
       environment:
         description: GitHub Environment for approval
-        required: true
         type: choice
+        required: true
         options:
           - app1-test
           - app1-prod
