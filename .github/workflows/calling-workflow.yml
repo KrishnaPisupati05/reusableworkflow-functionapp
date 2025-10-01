@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       slot-name:
-        description: |
+        description: >
           Azure deployment slot:
           - Enter "staging", "test", or any custom slot
           - Approval is required for all deployments
