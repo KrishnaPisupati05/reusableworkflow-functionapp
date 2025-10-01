@@ -107,7 +107,8 @@ jobs:
 
   approve_before_swap:
     name: Await Approval for Swap to Production
-    needs: [deploy]
+    # Key change: run if swap-to-prod is true, independent of deploy
+    needs: ${{ inputs.swap-only != true && 'deploy' || '' }}
     if: ${{ inputs.swap-to-prod == true && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     environment: Production
