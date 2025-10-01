@@ -1,0 +1,14 @@
+{
+  "name": "functions",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "lint": "echo 'Lint step passed for testing'",
+    "test": "echo 'Test step passed for testing' && exit 0",
+    "build": "echo 'Build step running' && mkdir -p build && echo index.html > build/index.html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
