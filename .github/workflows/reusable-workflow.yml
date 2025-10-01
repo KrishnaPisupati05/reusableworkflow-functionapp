@@ -62,9 +62,12 @@ jobs:
     environment: ${{ inputs.environment }}
     steps:
       - name: Approval Message
-        run: | 
-          echo "⏳ Awaiting approval for ${{ inputs.app-name }} to deploy to slot: '${{ inputs.slot-name != '' && inputs.slot-name || 'Production' }}'"
-          
+        run: |
+          SLOT="${{ inputs.slot-name }}"
+          if [ -z "$SLOT" ]; then
+            SLOT="Production"
+          fi
+          echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: $SLOT"
   deploy:
     name: Deploy Function App
     needs: approve
