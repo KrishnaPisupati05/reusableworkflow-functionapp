@@ -29,7 +29,7 @@ jobs:
       resource-group: test-rg
       slot-name: ${{ github.event.inputs.slot-name }}
       environment: ${{ github.event.inputs.environment }}
-      working-directory: functions
+      working-directory: functionapp/functions
       package-path: functions/build.zip
       node-version: 18.x
     secrets: inherit
