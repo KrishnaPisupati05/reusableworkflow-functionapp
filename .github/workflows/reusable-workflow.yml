@@ -1,0 +1,101 @@
+name: Reusable Function App Deployment
+
+on:
+  workflow_call:
+    inputs:
+      function-app-name:
+        required: true
+        type: string
+      resource-group:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+      slot-name:
+        required: false
+        type: string
+        default: ""
+      working-directory:
+        required: true
+        type: string
+      package-path:
+        required: true
+        type: string
+      node-version:
+        required: true
+        type: string
+
+jobs:
+  validate:
+    name: Validate & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install Dependencies
+        run: npm install
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Lint Application
+        run: npm run lint
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Run Tests
+        run: npm test
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Build Application
+        run: npm run build
+        working-directory: ${{ inputs.working-directory }}
+
+  approve:
+    name: Await Deployment Approval
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Approval Message
+        run: | 
+          echo "⏳ Awaiting approval for ${{ inputs.app-name }} to deploy to slot: '${{ inputs.slot-name != '' && inputs.slot-name || 'Production' }}'"
+          
+  deploy:
+    name: Deploy Function App
+    needs: approve
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Deploy to custom slot (staging/test)
+      - name: Deploy to Azure Function App (Custom Slot)
+        if: ${{ inputs.slot-name != '' }}
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ inputs.function-app-name }}
+          slot-name: ${{ inputs.slot-name }}
+          package: ${{ inputs.package-path }}
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+
+      # Deploy to Production
+      - name: Deploy to Azure Function App (Production)
+        if: ${{ inputs.slot-name == '' }}
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ inputs.function-app-name }}
+          package: ${{ inputs.package-path }}
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+
+      - name: Deployment Info
+        run: |
+          SLOT="${{ inputs.slot-name }}"
+          if [ -z "$SLOT" ]; then
+            SLOT="Production"
+          fi
+          echo "✅ Deployed ${{ inputs.function-app-name }} to slot: $SLOT"
