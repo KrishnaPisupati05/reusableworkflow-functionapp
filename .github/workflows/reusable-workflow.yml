@@ -122,19 +122,27 @@ jobs:
     if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Decode publish profile
+      - name: Extract publish profile credentials
         run: |
           echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
-          USERNAME=$(grep -oP 'userName="\K[^"]+' pubprofile.xml | head -n 1)
-          PASSWORD=$(grep -oP 'userPWD="\K[^"]+' pubprofile.xml | head -n 1)
+          USERNAME=$(grep -oP 'userName="\K[^"]+' pubprofile.xml | head -n1)
+          PASSWORD=$(grep -oP 'userPWD="\K[^"]+' pubprofile.xml | head -n1)
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-      - name: Swap Slots (Kudu API)
+
+      - name: Swap Slots (via Kudu API)
         run: |
-          curl -X POST "https://${{ inputs.function-app-name }}.scm.azurewebsites.net/api/slotsswap" \
+          echo "Swapping slot '${{ inputs.slot-name }}' to Production..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "https://${{ inputs.function-app-name }}.scm.azurewebsites.net/api/slotsswap" \
             -u "$USERNAME:$PASSWORD" \
             -H "Content-Type: application/json" \
-            -d "{\"targetSlot\":\"Production\",\"sourceSlot\":\"${{ inputs.slot-name }}\"}"
+            -d "{\"targetSlot\":\"Production\",\"sourceSlot\":\"${{ inputs.slot-name }}\"}")
+          if [ "$RESPONSE" -ne 200 ]; then
+            echo "❌ Swap failed with HTTP status code $RESPONSE"
+            exit 1
+          fi
+          echo "✅ Swap successful! '${{ inputs.slot-name }}' is now in Production."
 
   # -----------------------------
   # 6️⃣ APPROVE + SWAP ONLY (NO DEPLOY)
@@ -154,18 +162,11 @@ jobs:
     if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Install xmllint
-        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
-
-      - name: Save publish profile
+      - name: Extract publish profile credentials
         run: |
           echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
-
-      - name: Extract credentials
-        id: creds
-        run: |
-          USERNAME=$(xmllint --xpath "string(//publishProfile[@publishMethod='ZipDeploy']/@userName)" pubprofile.xml)
-          PASSWORD=$(xmllint --xpath "string(//publishProfile[@publishMethod='ZipDeploy']/@userPWD)" pubprofile.xml)
+          USERNAME=$(grep -oP 'userName="\K[^"]+' pubprofile.xml | head -n1)
+          PASSWORD=$(grep -oP 'userPWD="\K[^"]+' pubprofile.xml | head -n1)
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
 
