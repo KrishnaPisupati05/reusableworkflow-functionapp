@@ -12,12 +12,12 @@ on:
         default: ""
       swap-to-prod:
         description: "Swap to Production after deploying to slot?"
-        type: boolean
+        type: string
         required: false
         default: false
       swap-only:
         description: "Skip deploy, only swap existing slot to Production?"
-        type: boolean
+        type: string
         required: false
         default: false
       environment:
