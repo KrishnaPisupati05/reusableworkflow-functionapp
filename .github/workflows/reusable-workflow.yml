@@ -18,11 +18,11 @@ on:
         default: ""
       swap-to-prod:
         required: false
-        type: boolean
+        type: string
         default: false
       swap-only:
         required: false
-        type: boolean
+        type: string
         default: false
       working-directory:
         required: true
