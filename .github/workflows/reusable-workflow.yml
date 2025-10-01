@@ -16,6 +16,14 @@ on:
         required: false
         type: string
         default: ""
+      swap-to-prod:
+        required: false
+        type: boolean
+        default: false
+      swap-only:
+        required: false
+        type: boolean
+        default: false
       working-directory:
         required: true
         type: string
@@ -29,6 +37,7 @@ on:
 jobs:
   validate:
     name: Validate & Build
+    if: ${{ inputs.swap-only != true }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -55,9 +64,10 @@ jobs:
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
-  approve:
-    name: Await Deployment Approval
+  approve_before_slot_deploy:
+    name: Await Approval for Slot Deployment
     needs: validate
+    if: ${{ inputs.swap-only != true }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
@@ -68,15 +78,16 @@ jobs:
             SLOT="Production"
           fi
           echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: $SLOT"
+
   deploy:
-    name: Deploy Function App
-    needs: approve
+    name: Deploy to Function App Slot
+    needs: approve_before_slot_deploy
+    if: ${{ inputs.swap-only != true }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Deploy to custom slot (staging/test)
       - name: Deploy to Azure Function App (Custom Slot)
         if: ${{ inputs.slot-name != '' }}
         uses: Azure/functions-action@v1
@@ -86,15 +97,6 @@ jobs:
           package: ${{ inputs.package-path }}
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
 
-      # Deploy to Production
-      - name: Deploy to Azure Function App (Production)
-        if: ${{ inputs.slot-name == '' }}
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ inputs.function-app-name }}
-          package: ${{ inputs.package-path }}
-          publish-profile: ${{ secrets.PROD_PUBLISH_PROFILE }}
-
       - name: Deployment Info
         run: |
           SLOT="${{ inputs.slot-name }}"
@@ -102,3 +104,30 @@ jobs:
             SLOT="Production"
           fi
           echo "✅ Deployed ${{ inputs.function-app-name }} to slot: $SLOT"
+
+  approve_before_swap:
+    name: Await Approval for Swap to Production
+    needs: [deploy]
+    if: ${{ inputs.swap-to-prod == true && inputs.slot-name != '' }}
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - name: Approval Message
+        run: |
+          echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production for ${{ inputs.function-app-name }}"
+
+  swap:
+    name: Swap Slot to Production
+    needs: approve_before_swap
+    if: ${{ inputs.swap-to-prod == true && inputs.slot-name != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Swap Slots
+        uses: azure/cli@v1
+        with:
+          inlineScript: |
+            az functionapp deployment slot swap \
+              --name ${{ inputs.function-app-name }} \
+              --resource-group ${{ inputs.resource-group }} \
+              --slot ${{ inputs.slot-name }} \
+              --target-slot Production

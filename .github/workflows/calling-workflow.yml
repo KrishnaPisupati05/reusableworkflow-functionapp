@@ -6,11 +6,20 @@ on:
       slot-name:
         description: |
           Azure deployment slot:
-          - Leave empty → deploy to Production
           - Enter "staging", "test", or any custom slot
           - Approval is required for all deployments
         required: false
         default: ""
+      swap-to-prod:
+        description: "Swap to Production after deploying to slot?"
+        required: false
+        type: boolean
+        default: false
+      swap-only:
+        description: "Skip deploy, only swap existing slot to Production?"
+        required: false
+        type: boolean
+        default: false
       environment:
         description: GitHub Environment for approval
         required: true
@@ -28,6 +37,8 @@ jobs:
       function-app-name: test-function-0392
       resource-group: test-rg
       slot-name: ${{ github.event.inputs.slot-name }}
+      swap-to-prod: ${{ github.event.inputs.swap-to-prod }}
+      swap-only: ${{ github.event.inputs.swap-only }}
       environment: ${{ github.event.inputs.environment }}
       working-directory: functions
       package-path: functions/build.zip
