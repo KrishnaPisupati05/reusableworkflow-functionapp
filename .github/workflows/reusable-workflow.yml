@@ -117,7 +117,7 @@ jobs:
 
   swap:
     name: Swap Slot to Production
-    needs: approve_before_swap
+    needs: approve_before_swap_only
     if: ${{ inputs.swap-to-prod == true && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
