@@ -169,9 +169,10 @@ EOF
     steps:
       - name: Save publish profile safely
         run: |
-          cat <<'EOF' > pubprofile.xml
-${{ secrets.AZURE_PUBLISH_PROFILE }}
-EOF
+          cat > pubprofile.xml <<EOF
+    ${{ secrets.AZURE_PUBLISH_PROFILE }}
+    EOF
+
 
       - name: Extract credentials
         run: |
