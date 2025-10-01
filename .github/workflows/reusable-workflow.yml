@@ -19,11 +19,11 @@ on:
       swap-to-prod:
         required: false
         type: string
-        default: false
+        default: "false"
       swap-only:
         required: false
         type: string
-        default: false
+        default: "false"
       working-directory:
         required: true
         type: string
@@ -35,66 +35,57 @@ on:
         type: string
 
 jobs:
-  # ------------------------------------------------
-  # VALIDATE & BUILD (skip if swap-only=true)
-  # ------------------------------------------------
+  # -----------------------------
+  # 1️⃣ VALIDATE & BUILD
+  # -----------------------------
   validate:
     name: Validate & Build
-    if: ${{ inputs.swap-only != true }}
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ inputs.node-version }}
-
       - name: Install Dependencies
         run: npm install
         working-directory: ${{ inputs.working-directory }}
-
       - name: Lint Application
         run: npm run lint
         working-directory: ${{ inputs.working-directory }}
-
       - name: Run Tests
         run: npm test
         working-directory: ${{ inputs.working-directory }}
-
       - name: Build Application
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
-  # ------------------------------------------------
-  # APPROVAL BEFORE SLOT DEPLOY
-  # ------------------------------------------------
+  # -----------------------------
+  # 2️⃣ APPROVAL BEFORE SLOT DEPLOY
+  # -----------------------------
   approve_before_slot_deploy:
     name: Await Approval for Slot Deployment
     needs: validate
-    if: ${{ inputs.swap-only != true }}
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - name: Approval Message
-        run: |
+      - run: |
           SLOT="${{ inputs.slot-name }}"
           if [ -z "$SLOT" ]; then SLOT="Production"; fi
           echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: $SLOT"
 
-  # ------------------------------------------------
-  # DEPLOY TO FUNCTION APP SLOT
-  # ------------------------------------------------
+  # -----------------------------
+  # 3️⃣ DEPLOY TO FUNCTION APP SLOT
+  # -----------------------------
   deploy:
     name: Deploy to Function App Slot
     needs: approve_before_slot_deploy
-    if: ${{ inputs.swap-only != true }}
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Deploy to Azure Function App (Custom Slot)
         if: ${{ inputs.slot-name != '' }}
         uses: Azure/functions-action@v1
@@ -103,76 +94,74 @@ jobs:
           slot-name: ${{ inputs.slot-name }}
           package: ${{ inputs.package-path }}
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-
       - name: Deployment Info
         run: |
           SLOT="${{ inputs.slot-name }}"
           if [ -z "$SLOT" ]; then SLOT="Production"; fi
           echo "✅ Deployed ${{ inputs.function-app-name }} to slot: $SLOT"
 
-  # ------------------------------------------------
-  # APPROVE BEFORE SWAP (AFTER DEPLOY)
-  # ------------------------------------------------
+  # -----------------------------
+  # 4️⃣ APPROVAL BEFORE SWAP (AFTER DEPLOY)
+  # -----------------------------
   approve_before_swap:
     name: Await Approval for Swap to Production
     needs: deploy
-    if: ${{ inputs.swap-to-prod == true && inputs.swap-only != true && inputs.slot-name != '' }}
+    if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
-    environment: Production
+    environment: ${{ inputs.environment }}
     steps:
-      - name: Approval Message
-        run: |
+      - run: |
           echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production for ${{ inputs.function-app-name }}"
 
+  # -----------------------------
+  # 5️⃣ SWAP SLOTS (AFTER DEPLOY)
+  # -----------------------------
   swap:
     name: Swap Slot to Production
     needs: approve_before_swap
-    if: ${{ inputs.swap-to-prod == true && inputs.swap-only != true && inputs.slot-name != '' }}
+    if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Decode publish profile credentials
+      - name: Decode publish profile
         run: |
           echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
           USERNAME=$(grep -oP 'userName="\K[^"]+' pubprofile.xml | head -n 1)
           PASSWORD=$(grep -oP 'userPWD="\K[^"]+' pubprofile.xml | head -n 1)
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-
-      - name: Swap Slots (via Kudu API)
+      - name: Swap Slots (Kudu API)
         run: |
           curl -X POST "https://${{ inputs.function-app-name }}.scm.azurewebsites.net/api/slotsswap" \
             -u "$USERNAME:$PASSWORD" \
             -H "Content-Type: application/json" \
             -d "{\"targetSlot\":\"Production\",\"sourceSlot\":\"${{ inputs.slot-name }}\"}"
 
-  # ------------------------------------------------
-  # APPROVE + SWAP ONLY (NO DEPLOY)
-  # ------------------------------------------------
+  # -----------------------------
+  # 6️⃣ APPROVE + SWAP ONLY (NO DEPLOY)
+  # -----------------------------
   approve_before_swap_only:
     name: Approve Swap Only
-    if: ${{ inputs.swap-only == true && inputs.swap-to-prod == true && inputs.slot-name != '' }}
+    if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - name: Approval Message
-        run: |
+      - run: |
           echo "⏳ Awaiting approval to swap ONLY slot '${{ inputs.slot-name }}' to Production for ${{ inputs.function-app-name }}"
 
   swap_only:
     name: Swap Slot Only
     needs: approve_before_swap_only
-    if: ${{ inputs.swap-only == true && inputs.swap-to-prod == true && inputs.slot-name != '' }}
+    if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Decode publish profile credentials
+      - name: Decode publish profile
         run: |
           echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
           USERNAME=$(grep -oP 'userName="\K[^"]+' pubprofile.xml | head -n 1)
           PASSWORD=$(grep -oP 'userPWD="\K[^"]+' pubprofile.xml | head -n 1)
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-
-      - name: Swap Slots (via Kudu API)
+      - name: Swap Slots (Kudu API)
         run: |
           curl -X POST "https://${{ inputs.function-app-name }}.scm.azurewebsites.net/api/slotsswap" \
             -u "$USERNAME:$PASSWORD" \
