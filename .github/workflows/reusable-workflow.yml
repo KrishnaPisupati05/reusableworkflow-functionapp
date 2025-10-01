@@ -149,21 +149,25 @@ jobs:
           echo "⏳ Awaiting approval to swap ONLY slot '${{ inputs.slot-name }}' to Production for ${{ inputs.function-app-name }}"
 
   swap_only:
-    name: Swap Slot Only
-    needs: approve_before_swap_only
-    if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Decode publish profile
-        run: |
-          echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
-          USERNAME=$(grep -oP 'userName="\K[^"]+' pubprofile.xml | head -n 1)
-          PASSWORD=$(grep -oP 'userPWD="\K[^"]+' pubprofile.xml | head -n 1)
-          echo "USERNAME=$USERNAME" >> $GITHUB_ENV
-          echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-      - name: Swap Slots (Kudu API)
-        run: |
-          curl -X POST "https://${{ inputs.function-app-name }}.scm.azurewebsites.net/api/slotsswap" \
-            -u "$USERNAME:$PASSWORD" \
-            -H "Content-Type: application/json" \
-            -d "{\"targetSlot\":\"Production\",\"sourceSlot\":\"${{ inputs.slot-name }}\"}"
+  name: Swap Slot Only
+  if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
+  runs-on: ubuntu-latest
+  steps:
+    - name: Save publish profile
+      run: |
+        echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
+
+    - name: Extract credentials
+      id: creds
+      run: |
+        USERNAME=$(xmllint --xpath "string(//publishProfile[@publishMethod='ZipDeploy']/@userName)" pubprofile.xml)
+        PASSWORD=$(xmllint --xpath "string(//publishProfile[@publishMethod='ZipDeploy']/@userPWD)" pubprofile.xml)
+        echo "USERNAME=$USERNAME" >> $GITHUB_ENV
+        echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
+
+    - name: Swap Slots (via Kudu API)
+      run: |
+        curl -X POST "https://${{ inputs.function-app-name }}.scm.azurewebsites.net/api/slotsswap" \
+          -u "$USERNAME:$PASSWORD" \
+          -H "Content-Type: application/json" \
+          -d "{\"targetSlot\":\"Production\",\"sourceSlot\":\"${{ inputs.slot-name }}\"}"
