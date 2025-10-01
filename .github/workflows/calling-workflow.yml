@@ -12,14 +12,20 @@ on:
         default: ""
       swap-to-prod:
         description: "Swap to Production after deploying to slot?"
-        type: string
-        required: false
-        default: false
+        type: choice
+        required: true
+        options:
+          - "false"
+          - "true"
+        default: "false"
       swap-only:
         description: "Skip deploy, only swap existing slot to Production?"
-        type: string
-        required: false
-        default: false
+        type: choice
+        required: true
+        options:
+          - "false"
+          - "true"
+        default: "false"
       environment:
         description: GitHub Environment for approval
         type: choice
