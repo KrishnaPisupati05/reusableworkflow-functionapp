@@ -89,7 +89,7 @@ jobs:
       # Deploy to Production
       - name: Deploy to Azure Function App (Production)
         if: ${{ inputs.slot-name == '' }}
-        uses: Azure/functions-action@v2
+        uses: Azure/functions-action@v1
         with:
           app-name: ${{ inputs.function-app-name }}
           package: ${{ inputs.package-path }}
