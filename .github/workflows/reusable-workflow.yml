@@ -101,7 +101,7 @@ jobs:
           echo "✅ Deployed ${{ inputs.function-app-name }} to slot: $SLOT"
 
   # -----------------------------
-  # 4️⃣ APPROVE BEFORE SWAP (AFTER DEPLOY)
+  # 4️⃣ APPROVAL BEFORE SWAP (AFTER DEPLOY)
   # -----------------------------
   approve_before_swap:
     name: Await Approval for Swap to Production
@@ -122,15 +122,14 @@ jobs:
     if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Extract publish profile credentials
+      - name: Extract credentials from publish profile
         run: |
           echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
-          USERNAME=$(grep -oP 'userName="\K[^"]+' pubprofile.xml | head -n1)
-          PASSWORD=$(grep -oP 'userPWD="\K[^"]+' pubprofile.xml | head -n1)
+          USERNAME=$(sed -n 's/.*userName="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
+          PASSWORD=$(sed -n 's/.*userPWD="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-
-      - name: Swap Slots (via Kudu API)
+      - name: Swap Slots (Kudu API)
         run: |
           echo "Swapping slot '${{ inputs.slot-name }}' to Production..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -162,15 +161,14 @@ jobs:
     if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Extract publish profile credentials
+      - name: Extract credentials from publish profile
         run: |
           echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
-          USERNAME=$(grep -oP 'userName="\K[^"]+' pubprofile.xml | head -n1)
-          PASSWORD=$(grep -oP 'userPWD="\K[^"]+' pubprofile.xml | head -n1)
+          USERNAME=$(sed -n 's/.*userName="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
+          PASSWORD=$(sed -n 's/.*userPWD="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-
-      - name: Swap Slots (via Kudu API)
+      - name: Swap Slots (Kudu API)
         run: |
           echo "Swapping slot '${{ inputs.slot-name }}' to Production..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
