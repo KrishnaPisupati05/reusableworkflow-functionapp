@@ -18,12 +18,12 @@ on:
         default: ""
       swap-to-prod:
         required: false
-        type: boolean
-        default: false
+        type: string   # "true" or "false"
+        default: "false"
       swap-only:
         required: false
-        type: boolean
-        default: false
+        type: string   # "true" or "false"
+        default: "false"
       working-directory:
         required: true
         type: string
@@ -35,9 +35,10 @@ on:
         type: string
 
 jobs:
+  # ------------------- VALIDATE & BUILD -------------------
   validate:
     name: Validate & Build
-    if: ${{ inputs.swap-only != true }}
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -64,10 +65,11 @@ jobs:
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
+  # ------------------- APPROVAL BEFORE SLOT DEPLOY -------------------
   approve_before_slot_deploy:
     name: Await Approval for Slot Deployment
     needs: validate
-    if: ${{ inputs.swap-only != true }}
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
@@ -79,10 +81,11 @@ jobs:
           fi
           echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: $SLOT"
 
+  # ------------------- DEPLOY TO SLOT -------------------
   deploy:
     name: Deploy to Function App Slot
     needs: approve_before_slot_deploy
-    if: ${{ inputs.swap-only != true }}
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -105,9 +108,10 @@ jobs:
           fi
           echo "✅ Deployed ${{ inputs.function-app-name }} to slot: $SLOT"
 
-  approve_before_swap_only:
-    name: Approve Swap Only
-    if: ${{ inputs.swap-only == true && inputs.swap-to-prod == true && inputs.slot-name != '' }}
+  # ------------------- APPROVAL BEFORE SWAP (DEPLOY+SWAP) -------------------
+  approve_before_swap:
+    name: Await Approval for Swap to Production (Deploy+Swap)
+    if: ${{ inputs.swap-to-prod == 'true' && inputs.swap-only != 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
@@ -115,10 +119,39 @@ jobs:
         run: |
           echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production for ${{ inputs.function-app-name }}"
 
+  # ------------------- APPROVAL BEFORE SWAP (SWAP-ONLY) -------------------
+  approve_before_swap_only:
+    name: Await Approval for Swap to Production (Swap-Only)
+    if: ${{ inputs.swap-to-prod == 'true' && inputs.swap-only == 'true' && inputs.slot-name != '' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Approval Message
+        run: |
+          echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production for ${{ inputs.function-app-name }}"
+
+  # ------------------- SWAP JOB (DEPLOY+SWAP) -------------------
   swap:
-    name: Swap Slot to Production
+    name: Swap Slot to Production (Deploy+Swap)
+    needs: approve_before_swap
+    if: ${{ inputs.swap-to-prod == 'true' && inputs.swap-only != 'true' && inputs.slot-name != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Swap Slots
+        uses: azure/cli@v1
+        with:
+          inlineScript: |
+            az functionapp deployment slot swap \
+              --name ${{ inputs.function-app-name }} \
+              --resource-group ${{ inputs.resource-group }} \
+              --slot ${{ inputs.slot-name }} \
+              --target-slot Production
+
+  # ------------------- SWAP JOB (SWAP-ONLY) -------------------
+  swap_only:
+    name: Swap Slot to Production (Swap-Only)
     needs: approve_before_swap_only
-    if: ${{ inputs.swap-to-prod == true && inputs.slot-name != '' }}
+    if: ${{ inputs.swap-to-prod == 'true' && inputs.swap-only == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Swap Slots
