@@ -122,14 +122,20 @@ jobs:
     if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Extract credentials from publish profile
+      - name: Save publish profile safely
         run: |
-          echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
+          cat <<'EOF' > pubprofile.xml
+${{ secrets.AZURE_PUBLISH_PROFILE }}
+EOF
+
+      - name: Extract credentials
+        run: |
           USERNAME=$(sed -n 's/.*userName="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
           PASSWORD=$(sed -n 's/.*userPWD="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-      - name: Swap Slots (Kudu API)
+
+      - name: Swap Slots (via Kudu API)
         run: |
           echo "Swapping slot '${{ inputs.slot-name }}' to Production..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -161,14 +167,20 @@ jobs:
     if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Extract credentials from publish profile
+      - name: Save publish profile safely
         run: |
-          echo "${{ secrets.AZURE_PUBLISH_PROFILE }}" > pubprofile.xml
+          cat <<'EOF' > pubprofile.xml
+${{ secrets.AZURE_PUBLISH_PROFILE }}
+EOF
+
+      - name: Extract credentials
+        run: |
           USERNAME=$(sed -n 's/.*userName="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
           PASSWORD=$(sed -n 's/.*userPWD="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
           echo "USERNAME=$USERNAME" >> $GITHUB_ENV
           echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-      - name: Swap Slots (Kudu API)
+
+      - name: Swap Slots (via Kudu API)
         run: |
           echo "Swapping slot '${{ inputs.slot-name }}' to Production..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
