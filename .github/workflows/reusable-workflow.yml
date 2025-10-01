@@ -105,13 +105,11 @@ jobs:
           fi
           echo "✅ Deployed ${{ inputs.function-app-name }} to slot: $SLOT"
 
-  approve_before_swap:
-    name: Await Approval for Swap to Production
-    # Key change: run if swap-to-prod is true, independent of deploy
-    needs: ${{ inputs.swap-only != true && 'deploy' || '' }}
-    if: ${{ inputs.swap-to-prod == true && inputs.slot-name != '' }}
+  approve_before_swap_only:
+    name: Approve Swap Only
+    if: ${{ inputs.swap-only == true && inputs.swap-to-prod == true && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
-    environment: Production
+    environment: ${{ inputs.environment }}
     steps:
       - name: Approval Message
         run: |
