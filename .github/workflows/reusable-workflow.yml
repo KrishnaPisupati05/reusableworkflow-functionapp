@@ -35,9 +35,7 @@ on:
         type: string
 
 jobs:
-  # -----------------------------
-  # 1️⃣ VALIDATE & BUILD
-  # -----------------------------
+  # 1️⃣ VALIDATE
   validate:
     name: Validate & Build
     if: ${{ inputs.swap-only != 'true' }}
@@ -48,22 +46,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ inputs.node-version }}
-      - name: Install Dependencies
-        run: npm install
+      - run: npm install
         working-directory: ${{ inputs.working-directory }}
-      - name: Lint Application
-        run: npm run lint
+      - run: npm run lint
         working-directory: ${{ inputs.working-directory }}
-      - name: Run Tests
-        run: npm test
+      - run: npm test
         working-directory: ${{ inputs.working-directory }}
-      - name: Build Application
-        run: npm run build
+      - run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
-  # -----------------------------
-  # 2️⃣ APPROVAL BEFORE SLOT DEPLOY
-  # -----------------------------
+  # 2️⃣ APPROVE BEFORE SLOT DEPLOY
   approve_before_slot_deploy:
     name: Await Approval for Slot Deployment
     needs: validate
@@ -76,9 +68,7 @@ jobs:
           if [ -z "$SLOT" ]; then SLOT="Production"; fi
           echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: $SLOT"
 
-  # -----------------------------
-  # 3️⃣ DEPLOY TO FUNCTION APP SLOT
-  # -----------------------------
+  # 3️⃣ DEPLOY FUNCTION APP
   deploy:
     name: Deploy to Function App Slot
     needs: approve_before_slot_deploy
@@ -86,23 +76,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy to Azure Function App (Custom Slot)
-        if: ${{ inputs.slot-name != '' }}
+      - name: Deploy Function App
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ inputs.function-app-name }}
           slot-name: ${{ inputs.slot-name }}
           package: ${{ inputs.package-path }}
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-      - name: Deployment Info
-        run: |
-          SLOT="${{ inputs.slot-name }}"
-          if [ -z "$SLOT" ]; then SLOT="Production"; fi
-          echo "✅ Deployed ${{ inputs.function-app-name }} to slot: $SLOT"
 
-  # -----------------------------
-  # 4️⃣ APPROVAL BEFORE SWAP (AFTER DEPLOY)
-  # -----------------------------
+  # 4️⃣ APPROVE BEFORE SWAP (AFTER DEPLOY)
   approve_before_swap:
     name: Await Approval for Swap to Production
     needs: deploy
@@ -110,87 +92,55 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: |
-          echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production for ${{ inputs.function-app-name }}"
+      - run: echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production..."
 
-  # -----------------------------
-  # 5️⃣ SWAP SLOTS (AFTER DEPLOY)
-  # -----------------------------
+  # 5️⃣ SWAP SLOT (AFTER DEPLOY)
   swap:
     name: Swap Slot to Production
     needs: approve_before_swap
     if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Save publish profile safely
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Swap Slots via CLI
         run: |
-          cat <<'EOF' > pubprofile.xml
-${{ secrets.AZURE_PUBLISH_PROFILE }}
-EOF
+          echo "🔄 Swapping slot '${{ inputs.slot-name }}' to Production..."
+          az functionapp deployment slot swap \
+            --resource-group ${{ inputs.resource-group }} \
+            --name ${{ inputs.function-app-name }} \
+            --slot ${{ inputs.slot-name }} \
+            --target-slot Production
+          echo "✅ Swap successful!"
 
-      - name: Extract credentials
-        run: |
-          USERNAME=$(sed -n 's/.*userName="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
-          PASSWORD=$(sed -n 's/.*userPWD="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
-          echo "USERNAME=$USERNAME" >> $GITHUB_ENV
-          echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-
-      - name: Swap Slots (via Kudu API)
-        run: |
-          echo "Swapping slot '${{ inputs.slot-name }}' to Production..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "https://${{ inputs.function-app-name }}.scm.azurewebsites.net/api/slotsswap" \
-            -u "$USERNAME:$PASSWORD" \
-            -H "Content-Type: application/json" \
-            -d "{\"targetSlot\":\"Production\",\"sourceSlot\":\"${{ inputs.slot-name }}\"}")
-          if [ "$RESPONSE" -ne 200 ]; then
-            echo "❌ Swap failed with HTTP status code $RESPONSE"
-            exit 1
-          fi
-          echo "✅ Swap successful! '${{ inputs.slot-name }}' is now in Production."
-
-  # -----------------------------
-  # 6️⃣ APPROVE + SWAP ONLY (NO DEPLOY)
-  # -----------------------------
+  # 6️⃣ APPROVE BEFORE SWAP-ONLY
   approve_before_swap_only:
     name: Approve Swap Only
     if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: |
-          echo "⏳ Awaiting approval to swap ONLY slot '${{ inputs.slot-name }}' to Production for ${{ inputs.function-app-name }}"
+      - run: echo "⏳ Awaiting approval to swap ONLY slot '${{ inputs.slot-name }}' to Production..."
 
+  # 7️⃣ SWAP-ONLY JOB
   swap_only:
     name: Swap Slot Only
     needs: approve_before_swap_only
     if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' && inputs.slot-name != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Save publish profile safely
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Swap Slots via CLI
         run: |
-          cat > pubprofile.xml <<EOF
-        ${{ secrets.AZURE_PUBLISH_PROFILE }}
-        EOF
-
-
-      - name: Extract credentials
-        run: |
-          USERNAME=$(sed -n 's/.*userName="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
-          PASSWORD=$(sed -n 's/.*userPWD="\([^"]*\)".*/\1/p' pubprofile.xml | head -n1)
-          echo "USERNAME=$USERNAME" >> $GITHUB_ENV
-          echo "PASSWORD=$PASSWORD" >> $GITHUB_ENV
-
-      - name: Swap Slots (via Kudu API)
-        run: |
-          echo "Swapping slot '${{ inputs.slot-name }}' to Production..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "https://${{ inputs.function-app-name }}.scm.azurewebsites.net/api/slotsswap" \
-            -u "$USERNAME:$PASSWORD" \
-            -H "Content-Type: application/json" \
-            -d "{\"targetSlot\":\"Production\",\"sourceSlot\":\"${{ inputs.slot-name }}\"}")
-          if [ "$RESPONSE" -ne 200 ]; then
-            echo "❌ Swap failed with HTTP status code $RESPONSE"
-            exit 1
-          fi
-          echo "✅ Swap successful! '${{ inputs.slot-name }}' is now in Production."
+          echo "🔄 Swapping slot '${{ inputs.slot-name }}' to Production..."
+          az functionapp deployment slot swap \
+            --resource-group ${{ inputs.resource-group }} \
+            --name ${{ inputs.function-app-name }} \
+            --slot ${{ inputs.slot-name }} \
+            --target-slot Production
+          echo "✅ Swap successful!"

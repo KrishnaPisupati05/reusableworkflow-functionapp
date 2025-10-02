@@ -5,13 +5,16 @@ on:
     inputs:
       slot-name:
         description: |
-          Azure deployment slot:
-          - Leave blank for Production
-          - Or enter "staging", "test", etc.
-        required: false
-        default: ""
+          Name of the slot to deploy to.
+          Examples: staging, test, qa
+          ⚠️ Must always provide a slot. Production is only via swap.
+        required: true
       swap-to-prod:
-        description: "Swap to Production after deploying to slot?"
+        description: |
+          Swap the slot to Production after deployment?
+          Options:
+            - false → Deploy only to the slot
+            - true  → Deploy then swap to Production
         type: choice
         required: true
         options:
@@ -19,7 +22,11 @@ on:
           - "true"
         default: "false"
       swap-only:
-        description: "Skip deploy, only swap existing slot to Production?"
+        description: |
+          Skip deployment and swap slot directly to Production?
+          Options:
+            - false → Normal deployment (with optional swap)
+            - true  → Only swap the existing slot
         type: choice
         required: true
         options:
