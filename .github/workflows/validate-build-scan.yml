@@ -1,0 +1,87 @@
+name: Validate, Build & Node.js Scan
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+      node-version:
+        required: true
+        type: string
+
+jobs:
+  validate_build:
+    name: Validate, Build & Upload Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ${{ inputs.working-directory }}
+
+      # Lint
+      - name: Lint
+        run: npm run lint
+        working-directory: ${{ inputs.working-directory }}
+
+      # Test
+      - name: Run tests
+        run: npm test
+        working-directory: ${{ inputs.working-directory }}
+
+      # Build
+      - name: Build
+        run: npm run build
+        working-directory: ${{ inputs.working-directory }}
+
+      # Zip the build folder as artifact
+      - name: Zip Build Artifact
+        run: |
+          mkdir -p artifact
+          cp -r ${{ inputs.working-directory }}/build/* artifact/
+          zip -r build-artifact.zip artifact/
+
+      # Upload artifact
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact
+          path: build-artifact.zip
+
+  scan:
+    name: Download Artifact & Node.js Vulnerability Scan
+    needs: validate_build
+    runs-on: ubuntu-latest
+    steps:
+      # Download artifact
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifact
+          path: ./artifact
+
+      # Unzip artifact
+      - name: Unzip Build Artifact
+        run: unzip ./artifact/build-artifact.zip -d ./artifact
+
+      # Node.js vulnerability scan
+      - name: Node.js Vulnerability Scan
+        run: |
+          cd ${{ inputs.working-directory }}
+          npm ci
+          echo "🔍 Running vulnerability scan..."
+          if npm audit --audit-level=high; then
+            echo "✅ Vulnerability scan passed."
+          else
+            echo "❌ Vulnerability scan failed! Fix high/critical issues before deploying."
+            exit 1
+          fi

@@ -63,22 +63,22 @@ jobs:
   # -----------------------------
   # 2️⃣ APPROVAL BEFORE SLOT DEPLOY
   # -----------------------------
-  approve_before_slot_deploy:
-    name: Await Approval for Slot Deployment
+  approve_staging_deploy:
+    name: Await Approval for Staging Deployment
     needs: validate
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
       - run: |
-          echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: ${{ inputs.slot-name }}"
+          echo "⏳ Awaiting approval to deploy ${{ inputs.function-app-name }} to slot '${{ inputs.slot-name }}'..."
 
   # -----------------------------
   # 3️⃣ DEPLOY FUNCTION APP TO CUSTOM SLOT
   # -----------------------------
-  deploy:
+  deploy_to_slot:
     name: Deploy to Function App Slot
-    needs: approve_before_slot_deploy
+    needs: approve_staging_deploy
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -112,23 +112,24 @@ jobs:
             --slot ${{ inputs.slot-name }}
 
   # -----------------------------
-  # 4️⃣ APPROVE BEFORE SWAP
+  # 4️⃣ APPROVAL BEFORE SWAP (Scenario 2: Deploy to staging + swap)
   # -----------------------------
-  approve_before_swap:
+  approve_staging_to_prod_swap:
     name: Await Approval for Swap to Production
-    needs: deploy
+    needs: deploy_to_slot
     if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production..."
+      - run: |
+          echo "⏳ Awaiting approval to swap slot '${{ inputs.slot-name }}' to Production..."
 
   # -----------------------------
-  # 5️⃣ SWAP SLOT
+  # 5️⃣ SWAP SLOT TO PROD (Scenario 2)
   # -----------------------------
-  swap:
-    name: Swap Slot to Production
-    needs: approve_before_swap
+  staging_to_prod_swap:
+    name: Swap Staging Slot to Production
+    needs: approve_staging_to_prod_swap
     if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -147,22 +148,23 @@ jobs:
           echo "✅ Swap successful!"
 
   # -----------------------------
-  # 6️⃣ APPROVE + SWAP ONLY
+  # 6️⃣ APPROVE + SWAP ONLY (Scenario 3)
   # -----------------------------
-  approve_before_swap_only:
-    name: Approve Swap Only
+  approve_only_swap_to_prod:
+    name: Approve Swap Only to Production
     if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: echo "⏳ Awaiting approval to swap ONLY slot '${{ inputs.slot-name }}' to Production..."
+      - run: |
+          echo "⏳ Awaiting approval to swap ONLY slot '${{ inputs.slot-name }}' to Production..."
 
   # -----------------------------
-  # 7️⃣ SWAP ONLY JOB
+  # 7️⃣ SWAP ONLY JOB (Scenario 3)
   # -----------------------------
-  swap_only:
-    name: Swap Slot Only
-    needs: approve_before_swap_only
+  only_swap_to_prod:
+    name: Swap Slot Only to Production
+    needs: approve_only_swap_to_prod
     if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' }}
     runs-on: ubuntu-latest
     steps:
