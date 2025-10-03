@@ -6,7 +6,7 @@ on:
       working-directory:
         description: Node.js project folder
         required: true
-        default: functionapp/functions/HttpTriggerTest
+        default: functions
       node-version:
         description: Node.js version to use
         required: true

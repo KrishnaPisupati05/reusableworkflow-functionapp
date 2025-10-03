@@ -4,9 +4,11 @@ on:
   workflow_call:
     inputs:
       working-directory:
+        description: Node.js project folder relative to repo root
         required: true
         type: string
       node-version:
+        description: Node.js version to use
         required: true
         type: string
 
@@ -16,6 +18,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Verify working directory exists
+      - name: Verify working directory exists
+        run: |
+          if [ ! -d "${{ inputs.working-directory }}" ]; then
+            echo "❌ Folder ${{ inputs.working-directory }} does not exist!"
+            exit 1
+          else
+            echo "✅ Folder ${{ inputs.working-directory }} found."
+          fi
 
       # Setup Node.js
       - name: Setup Node.js
@@ -76,9 +88,8 @@ jobs:
       # Node.js vulnerability scan
       - name: Node.js Vulnerability Scan
         run: |
-          cd ${{ inputs.working-directory }}
-          npm ci
           echo "🔍 Running vulnerability scan..."
+          npm install
           if npm audit --audit-level=high; then
             echo "✅ Vulnerability scan passed."
           else
