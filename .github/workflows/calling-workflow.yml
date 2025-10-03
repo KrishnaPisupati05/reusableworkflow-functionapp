@@ -43,10 +43,7 @@ on:
           - app2-test
           - app2-prod
       working-directory:
-        description: Folder path where package.json exists (Node.js project)
-        required: true
-      node-version:
-        description: Node.js version to use
+        description: Folder where your Node.js function app code exists
         required: true
 
 jobs:
@@ -60,5 +57,5 @@ jobs:
       swap-only: ${{ github.event.inputs.swap-only }}
       environment: ${{ github.event.inputs.environment }}
       working-directory: ${{ github.event.inputs.working-directory }}
-      node-version: ${{ github.event.inputs.node-version }}
+      node-version: 18.x
     secrets: inherit
