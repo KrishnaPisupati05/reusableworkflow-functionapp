@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       working-directory:
-        description: Node.js project folder relative to repo root
+        description: Node.js project folder relative to repo root (where package.json exists)
         required: true
         type: string
       node-version:
@@ -70,22 +70,19 @@ jobs:
           path: build-artifact.zip
 
   scan:
-    name: Download Artifact & Node.js Vulnerability Scan
+    name: Node.js Vulnerability Scan
     needs: validate_build
     runs-on: ubuntu-latest
     steps:
-      # Download artifact
-      - name: Download Build Artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          name: build-artifact
-          path: ./artifact
+          node-version: ${{ inputs.node-version }}
 
-      # Unzip artifact
-      - name: Unzip Build Artifact
-        run: unzip ./artifact/build-artifact.zip -d ./artifact
-
-      # Node.js vulnerability scan
+      # Run vulnerability scan in the correct folder
       - name: Node.js Vulnerability Scan
         run: |
           echo "🔍 Running vulnerability scan..."
@@ -96,3 +93,4 @@ jobs:
             echo "❌ Vulnerability scan failed! Fix high/critical issues before deploying."
             exit 1
           fi
+        working-directory: ${{ inputs.working-directory }}
