@@ -62,8 +62,9 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
       - name: Package Artifact
         run: |
+          # Flatten artifact so package.json is at root
           cd ${{ inputs.working-directory }}
-          zip -r ../full-artifact.zip .
+          zip -r ../../full-artifact.zip .
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -71,7 +72,7 @@ jobs:
           path: full-artifact.zip
 
   # -----------------------------
-  # 2️⃣ Scan Node.js Artifact for Vulnerabilities
+  # 2️⃣ Vulnerability Scan
   # -----------------------------
   scan_artifact:
     name: Vulnerability Scan for Node.js Artifact
@@ -90,12 +91,7 @@ jobs:
         run: |
           cd ./artifact
           npm install
-          if npm audit --audit-level=high; then
-            echo "Vulnerability scan passed."
-          else
-            echo "Vulnerability scan failed! Fix high/critical issues before deploying."
-            exit 1
-          fi
+          npm audit --audit-level=high || exit 1
 
   # -----------------------------
   # 3️⃣ Approval for Staging Deployment
@@ -138,16 +134,10 @@ jobs:
         with:
           name: full-artifact
           path: ./artifact
-      - name: Install Dependencies in Artifact
+      - name: Deploy Function App
         run: |
-          cd ./artifact
-          npm install
-      - name: Deploy Artifact to Slot
-        run: |
-          cd ./artifact
-          zip -r full-artifact.zip .
           az functionapp deployment source config-zip \
-            --src full-artifact.zip \
+            --src ./artifact/full-artifact.zip \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }}
@@ -212,7 +202,4 @@ jobs:
       - name: Swap Slot
         run: |
           az functionapp deployment slot swap \
-            --resource-group ${{ inputs.resource-group }} \
-            --name ${{ inputs.function-app-name }} \
-            --slot ${{ inputs.slot-name }} \
-            --target-slot Production
+            --resource-group ${{ inputs.reso
