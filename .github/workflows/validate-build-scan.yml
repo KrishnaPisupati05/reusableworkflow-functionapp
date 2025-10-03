@@ -19,16 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Verify working directory exists
-      - name: Verify working directory exists
-        run: |
-          if [ ! -d "${{ inputs.working-directory }}" ]; then
-            echo "❌ Folder ${{ inputs.working-directory }} does not exist!"
-            exit 1
-          else
-            echo "✅ Folder ${{ inputs.working-directory }} found."
-          fi
-
       # Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -55,13 +45,10 @@ jobs:
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
-      # Zip the **entire code folder + build + package.json** as artifact
+      # Zip the **entire project folder** including build and package.json
       - name: Zip Full Artifact
         run: |
-          artifact_folder="artifact"
-          mkdir -p $artifact_folder
-          cp -r ${{ inputs.working-directory }}/* $artifact_folder/
-          zip -r full-artifact.zip $artifact_folder/
+          zip -r full-artifact.zip ${{ inputs.working-directory }}
 
       # Upload artifact
       - name: Upload Full Artifact
@@ -86,7 +73,7 @@ jobs:
       - name: Unzip Full Artifact
         run: unzip ./artifact/full-artifact.zip -d ./artifact
 
-      # Node.js vulnerability scan
+      # Node.js vulnerability scan inside the correct folder
       - name: Node.js Vulnerability Scan
         run: |
           echo "🔍 Running vulnerability scan..."
@@ -97,4 +84,4 @@ jobs:
             echo "❌ Vulnerability scan failed! Fix high/critical issues before deploying."
             exit 1
           fi
-        working-directory: ./artifact
+        working-directory: ./artifact/${{ inputs.working-directory }}
