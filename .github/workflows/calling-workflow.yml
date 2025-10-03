@@ -42,9 +42,15 @@ on:
           - app1-prod
           - app2-test
           - app2-prod
+      working-directory:
+        description: Folder path where package.json exists (Node.js project)
+        required: true
+      node-version:
+        description: Node.js version to use
+        required: true
 
 jobs:
-  deploy-function-app:
+  deploy_function_app:
     uses: ./.github/workflows/reusable-workflow.yml
     with:
       function-app-name: test-function-0392
@@ -53,7 +59,6 @@ jobs:
       swap-to-prod: ${{ github.event.inputs.swap-to-prod }}
       swap-only: ${{ github.event.inputs.swap-only }}
       environment: ${{ github.event.inputs.environment }}
-      working-directory: functions
-      package-path: functions/build.zip
-      node-version: 18.x
+      working-directory: ${{ github.event.inputs.working-directory }}
+      node-version: ${{ github.event.inputs.node-version }}
     secrets: inherit
