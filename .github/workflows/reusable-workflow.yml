@@ -14,7 +14,7 @@ on:
         type: string
       swap-to-prod:
         required: true
-        type: string
+        type: string  # "true"/"false"
       swap-only:
         required: true
         type: string
@@ -31,7 +31,7 @@ on:
 jobs:
   validate_and_build:
     name: "Validate, Test, Build and Vulnerability Scan"
-    if: ${{ inputs.swap-only == false }}
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     outputs:
       artifact-name: validate-artifact
@@ -39,7 +39,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js ${{ inputs.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ inputs.node-version }}
@@ -60,7 +60,7 @@ jobs:
         run: npm run lint
         working-directory: ${{ inputs.working-directory }}
 
-      - name: Run Vulnerability Scan
+      - name: Vulnerability Scan
         run: npm audit
         working-directory: ${{ inputs.working-directory }}
 
@@ -78,7 +78,7 @@ jobs:
 
   approve_staging_deployment:
     name: "Approve Staging/Test Deployment"
-    if: ${{ inputs.swap-only == false }}
+    if: ${{ inputs.swap-only != 'true' }}
     needs: validate_and_build
     runs-on: ubuntu-latest
     environment:
@@ -89,7 +89,7 @@ jobs:
 
   deploy_to_staging:
     name: "Deploy to Staging/Test"
-    if: ${{ inputs.swap-only == false }}
+    if: ${{ inputs.swap-only != 'true' }}
     needs: approve_staging_deployment
     runs-on: ubuntu-latest
     steps:
@@ -114,7 +114,7 @@ jobs:
 
   approve_staging_to_production:
     name: "Approve Staging to Production Swap"
-    if: ${{ inputs.swap-to-prod == true && inputs.swap-only == false }}
+    if: ${{ inputs.swap-to-prod == 'true' && inputs.swap-only != 'true' }}
     needs: deploy_to_staging
     runs-on: ubuntu-latest
     environment:
@@ -125,7 +125,7 @@ jobs:
 
   swap_staging_to_production:
     name: "Swap Staging Slot to Production"
-    if: ${{ inputs.swap-to-prod == true }}
+    if: ${{ inputs.swap-to-prod == 'true' }}
     needs: [approve_staging_to_production, approve_staging_deployment]
     runs-on: ubuntu-latest
     steps:
@@ -139,11 +139,12 @@ jobs:
           az functionapp deployment slot swap \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
-            --slot ${{ inputs.slot-name }}
+            --slot ${{ inputs.slot-name }} \
+            --target-slot Production
 
   approve_swap_only_to_production:
     name: "Approve Swap Only to Production"
-    if: ${{ inputs.swap-only == true && inputs.swap-to-prod == true }}
+    if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment }}
@@ -153,7 +154,7 @@ jobs:
 
   swap_only_to_production:
     name: "Swap Only Slot to Production"
-    if: ${{ inputs.swap-only == true && inputs.swap-to-prod == true }}
+    if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' }}
     needs: approve_swap_only_to_production
     runs-on: ubuntu-latest
     steps:
@@ -167,4 +168,5 @@ jobs:
           az functionapp deployment slot swap \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
-            --slot ${{ inputs.slot-name }}
+            --slot ${{ inputs.slot-name }} \
+            --target-slot Production
