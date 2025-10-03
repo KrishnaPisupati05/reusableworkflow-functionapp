@@ -60,7 +60,7 @@ jobs:
       - name: Build Project
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
-      - name: Package Flattened Artifact
+      - name: Package Artifact
         run: |
           cd ${{ inputs.working-directory }}
           zip -r ../full-artifact.zip .
@@ -133,15 +133,21 @@ jobs:
               --resource-group ${{ inputs.resource-group }} \
               --slot ${{ inputs.slot-name }}
           fi
-      - name: Download Artifact for Deployment
+      - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: full-artifact
           path: ./artifact
+      - name: Install Dependencies in Artifact
+        run: |
+          cd ./artifact
+          npm install
       - name: Deploy Artifact to Slot
         run: |
+          cd ./artifact
+          zip -r full-artifact.zip .
           az functionapp deployment source config-zip \
-            --src ./artifact/full-artifact.zip \
+            --src full-artifact.zip \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }}
