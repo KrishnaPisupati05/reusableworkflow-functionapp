@@ -95,7 +95,7 @@ jobs:
             echo "Vulnerability scan failed! Fix high/critical issues before deploying."
             exit 1
           fi
-        working-directory: ./artifact/${{ inputs.working-directory }}
+        working-directory: ./artifact
 
   # -----------------------------
   # 3. Approval for Staging Deployment
