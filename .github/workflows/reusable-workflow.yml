@@ -26,6 +26,9 @@ on:
       working-directory:
         required: true
         type: string
+      node-version:
+        required: true
+        type: string  
 
     secrets:
       AZURE_CREDENTIALS:
