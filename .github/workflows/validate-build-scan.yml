@@ -1,4 +1,4 @@
-name: Validate, Build & Node.js Scan
+name: Validate, Build, Artifact & Node.js Scan
 
 on:
   workflow_call:
@@ -55,34 +55,38 @@ jobs:
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
-      # Zip the build folder as artifact
-      - name: Zip Build Artifact
+      # Zip the **entire code folder + build + package.json** as artifact
+      - name: Zip Full Artifact
         run: |
-          mkdir -p artifact
-          cp -r ${{ inputs.working-directory }}/build/* artifact/
-          zip -r build-artifact.zip artifact/
+          artifact_folder="artifact"
+          mkdir -p $artifact_folder
+          cp -r ${{ inputs.working-directory }}/* $artifact_folder/
+          zip -r full-artifact.zip $artifact_folder/
 
       # Upload artifact
-      - name: Upload Build Artifact
+      - name: Upload Full Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifact
-          path: build-artifact.zip
+          name: full-artifact
+          path: full-artifact.zip
 
   scan:
-    name: Node.js Vulnerability Scan
+    name: Download Artifact & Node.js Vulnerability Scan
     needs: validate_build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      # Setup Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      # Download artifact
+      - name: Download Full Artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: ${{ inputs.node-version }}
+          name: full-artifact
+          path: ./artifact
 
-      # Run vulnerability scan in the correct folder
+      # Unzip artifact
+      - name: Unzip Full Artifact
+        run: unzip ./artifact/full-artifact.zip -d ./artifact
+
+      # Node.js vulnerability scan
       - name: Node.js Vulnerability Scan
         run: |
           echo "🔍 Running vulnerability scan..."
@@ -93,4 +97,4 @@ jobs:
             echo "❌ Vulnerability scan failed! Fix high/critical issues before deploying."
             exit 1
           fi
-        working-directory: ${{ inputs.working-directory }}
+        working-directory: ./artifact
