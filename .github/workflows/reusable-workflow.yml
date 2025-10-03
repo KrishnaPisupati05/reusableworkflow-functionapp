@@ -14,10 +14,10 @@ on:
         type: string
       swap-to-prod:
         required: true
-        type: boolean
+        type: string
       swap-only:
         required: true
-        type: boolean
+        type: string
       environment:
         required: true
         type: string
