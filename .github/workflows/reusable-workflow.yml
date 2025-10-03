@@ -36,10 +36,10 @@ on:
 
 jobs:
   # -----------------------------
-  # 1️⃣ Validate & Build Node.js Artifact
+  # 1️⃣ Validate & Build Node.js
   # -----------------------------
   validate_build:
-    name: Validate and Build Node.js Artifact
+    name: Validate and Build Node.js
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -48,7 +48,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18.x
+          node-version: ${{ inputs.node-version }}
 
       - name: Install Dependencies
         run: npm install
@@ -66,47 +66,12 @@ jobs:
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
-      - name: Package Artifact
-        run: |
-          cd ${{ inputs.working-directory }}
-          zip -r ../../full-artifact.zip *
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: full-artifact
-          path: full-artifact.zip
-
   # -----------------------------
-  # 2️⃣ Vulnerability Scan
-  # -----------------------------
-  scan_artifact:
-    name: Vulnerability Scan for Node.js Artifact
-    needs: validate_build
-    if: ${{ inputs.swap-only != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: full-artifact
-          path: ./artifact
-
-      - name: Unzip Artifact
-        run: unzip ./artifact/full-artifact.zip -d ./artifact
-
-      - name: Run Vulnerability Scan
-        run: |
-          cd ./artifact
-          npm install
-          npm audit --audit-level=high || exit 1
-
-  # -----------------------------
-  # 3️⃣ Approval for Staging Deployment
+  # 2️⃣ Approval for Staging Deployment
   # -----------------------------
   approve_staging_deploy:
     name: Awaiting Approval for Staging Deployment
-    needs: scan_artifact
+    needs: validate_build
     if: ${{ inputs.slot-name != '' && inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
@@ -114,10 +79,10 @@ jobs:
       - run: echo "Awaiting approval to deploy ${{ inputs.function-app-name }} to slot '${{ inputs.slot-name }}'..."
 
   # -----------------------------
-  # 4️⃣ Deploy Artifact to Staging Slot
+  # 3️⃣ Deploy to Staging Slot
   # -----------------------------
   deploy_to_slot:
-    name: Deploy Artifact to Staging Slot
+    name: Deploy to Staging Slot
     needs: approve_staging_deploy
     if: ${{ inputs.slot-name != '' && inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
@@ -139,25 +104,19 @@ jobs:
               --slot ${{ inputs.slot-name }}
           fi
 
-      - name: Download Artifact for Deployment
-        uses: actions/download-artifact@v4
-        with:
-          name: full-artifact
-          path: ./artifact
-
-      - name: Install Node Modules & Deploy
+      - name: Deploy Code to Slot
         run: |
-          cd ./artifact
+          cd ${{ inputs.working-directory }}
           npm install --production
-          zip -r ../artifact-deploy.zip *
+          zip -r ../functionapp-deploy.zip *
           az functionapp deployment source config-zip \
-            --src ../artifact-deploy.zip \
+            --src ../functionapp-deploy.zip \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }}
 
   # -----------------------------
-  # 5️⃣ Approval Before Swap to Production
+  # 4️⃣ Approval Before Swap to Production
   # -----------------------------
   approve_staging_to_prod_swap:
     name: Awaiting Approval for Swap to Production
@@ -169,7 +128,7 @@ jobs:
       - run: echo "Awaiting approval to swap slot '${{ inputs.slot-name }}' to Production..."
 
   # -----------------------------
-  # 6️⃣ Swap Staging Slot to Production
+  # 5️⃣ Swap Staging Slot to Production
   # -----------------------------
   swap_staging_to_prod:
     name: Swap Staging Slot to Production
@@ -191,7 +150,7 @@ jobs:
             --target-slot Production
 
   # -----------------------------
-  # 7️⃣ Approval Only Swap to Production
+  # 6️⃣ Approval Only Swap to Production
   # -----------------------------
   approve_only_swap:
     name: Awaiting Approval for Swap Only to Production
@@ -202,7 +161,7 @@ jobs:
       - run: echo "Awaiting approval to swap ONLY slot '${{ inputs.slot-name }}' to Production..."
 
   # -----------------------------
-  # 8️⃣ Swap Only Slot to Production
+  # 7️⃣ Swap Only Slot to Production
   # -----------------------------
   swap_only_to_prod:
     name: Swap Only Slot to Production
