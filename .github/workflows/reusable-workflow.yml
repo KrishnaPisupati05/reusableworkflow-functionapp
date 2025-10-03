@@ -74,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: validate-artifact
-          path: ${{ inputs.working-directory }}/../app.zip
+          path: ${{ inputs.working-directory }}/app.zip
 
   approve_staging_deployment:
     name: "Approve Staging/Test Deployment"
