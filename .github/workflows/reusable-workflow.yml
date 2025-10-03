@@ -104,6 +104,21 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Ensure Slot Exists
+        run: |
+          if ! az functionapp deployment slot list \
+              --name ${{ inputs.function-app-name }} \
+              --resource-group ${{ inputs.resource-group }} \
+              --query "[?name=='${{ inputs.slot-name }}']" -o tsv | grep -q ${{ inputs.slot-name }}; then
+            echo "Slot ${{ inputs.slot-name }} does not exist. Creating..."
+            az functionapp deployment slot create \
+              --name ${{ inputs.function-app-name }} \
+              --resource-group ${{ inputs.resource-group }} \
+              --slot ${{ inputs.slot-name }}
+          else
+            echo "Slot ${{ inputs.slot-name }} already exists."
+          fi
+
       - name: Deploy Function App to Slot
         run: |
           az functionapp deployment source config-zip \
