@@ -26,9 +26,6 @@ on:
       working-directory:
         required: true
         type: string
-      node-version:
-        required: true
-        type: string
 
     secrets:
       AZURE_CREDENTIALS:
@@ -44,27 +41,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: 18.x
+
       - name: Install Dependencies
         run: npm install
         working-directory: ${{ inputs.working-directory }}
+
       - name: Lint Project
         run: npm run lint
         working-directory: ${{ inputs.working-directory }}
+
       - name: Run Tests
         run: npm test
         working-directory: ${{ inputs.working-directory }}
+
       - name: Build Project
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
+
       - name: Package Artifact
         run: |
-          # Flatten artifact so package.json is at root
           cd ${{ inputs.working-directory }}
-          zip -r ../../full-artifact.zip .
+          zip -r ../../full-artifact.zip *
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -85,8 +88,10 @@ jobs:
         with:
           name: full-artifact
           path: ./artifact
+
       - name: Unzip Artifact
         run: unzip ./artifact/full-artifact.zip -d ./artifact
+
       - name: Run Vulnerability Scan
         run: |
           cd ./artifact
@@ -118,6 +123,7 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Ensure Slot Exists
         run: |
           if ! az functionapp deployment slot show \
@@ -129,15 +135,20 @@ jobs:
               --resource-group ${{ inputs.resource-group }} \
               --slot ${{ inputs.slot-name }}
           fi
-      - name: Download Artifact
+
+      - name: Download Artifact for Deployment
         uses: actions/download-artifact@v4
         with:
           name: full-artifact
           path: ./artifact
-      - name: Deploy Function App
+
+      - name: Install Node Modules & Deploy
         run: |
+          cd ./artifact
+          npm install --production
+          zip -r ../artifact-deploy.zip *
           az functionapp deployment source config-zip \
-            --src ./artifact/full-artifact.zip \
+            --src ../artifact-deploy.zip \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }}
@@ -167,6 +178,7 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Swap Slots
         run: |
           az functionapp deployment slot swap \
@@ -199,6 +211,7 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Swap Slot
         run: |
           az functionapp deployment slot swap \
