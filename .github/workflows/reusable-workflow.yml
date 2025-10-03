@@ -202,4 +202,7 @@ jobs:
       - name: Swap Slot
         run: |
           az functionapp deployment slot swap \
-            --resource-group ${{ inputs.reso
+            --resource-group ${{ inputs.resource-group }} \
+            --name ${{ inputs.function-app-name }} \
+            --slot ${{ inputs.slot-name }} \
+            --target-slot Production
