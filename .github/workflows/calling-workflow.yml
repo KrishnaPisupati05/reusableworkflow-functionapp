@@ -42,9 +42,6 @@ on:
           - app1-prod
           - app2-test
           - app2-prod
-      working-directory:
-        description: Folder where your Node.js function app code exists
-        required: true
 
 jobs:
   deploy_function_app:
@@ -56,6 +53,6 @@ jobs:
       swap-to-prod: ${{ github.event.inputs.swap-to-prod }}
       swap-only: ${{ github.event.inputs.swap-only }}
       environment: ${{ github.event.inputs.environment }}
-      working-directory: ${{ github.event.inputs.working-directory }}
+      working-directory: functions
       node-version: 18.x
     secrets: inherit
