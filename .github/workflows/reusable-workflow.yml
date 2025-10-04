@@ -36,10 +36,11 @@ on:
 
 jobs:
   # -----------------------------
-  # 1️⃣ VALIDATE, BUILD & PACKAGE
+  # 1️⃣ VALIDATE, BUILD & ZIP
   # -----------------------------
   validate_and_build:
     name: Validate, Build & Package
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     outputs:
       artifact-name: functionapp-artifact
@@ -67,15 +68,16 @@ jobs:
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
-      # ✅ Package only function folders + host.json
+      # ✅ Package function app so index.js is at the function folder
       - name: Zip Function App
         run: |
           cd ${{ inputs.working-directory }}
+          # Remove unnecessary files/folders
           find . -type d -name "node_modules" -exec rm -rf {} +
           find . -type f -name "*.log" -delete
           find . -type d -name ".git" -exec rm -rf {} +
-          zip -r functionapp.zip .
-
+          # Zip everything (host.json + function folders)
+          zip -r functionapp.zip ./*
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -83,11 +85,24 @@ jobs:
           path: ${{ inputs.working-directory }}/functionapp.zip
 
   # -----------------------------
-  # 2️⃣ DEPLOY TO SLOT USING PUBLISH PROFILE
+  # 2️⃣ APPROVE BEFORE SLOT DEPLOY
+  # -----------------------------
+  approve_before_slot_deploy:
+    name: Await Approval
+    needs: validate_and_build
+    if: ${{ inputs.swap-only != 'true' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - run: echo "⏳ Awaiting approval for deployment to slot '${{ inputs.slot-name }}'"
+
+  # -----------------------------
+  # 3️⃣ DEPLOY TO SLOT
   # -----------------------------
   deploy_to_slot:
     name: Deploy to Function App Slot
-    needs: validate_and_build
+    needs: approve_before_slot_deploy
+    if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifact
@@ -116,21 +131,75 @@ jobs:
             echo "Slot '${{ inputs.slot-name }}' exists. Skipping creation."
           fi
 
-      - name: Get Publish Profile
-        id: pubprofile
+      - name: Deploy Function App ZIP
         run: |
-          echo "Fetching publish profile..."
-          PUB_PROFILE=$(az functionapp deployment list-publishing-profiles \
+          echo "Deploying to slot '${{ inputs.slot-name }}'..."
+          az functionapp deployment source config-zip \
+            --src ./deploy/functionapp.zip \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
-            --slot ${{ inputs.slot-name }} \
-            --query "[?contains(publishMethod,'MSDeploy')].publishUrl" -o tsv)
-          echo "publish-profile-url=$PUB_PROFILE" >> $GITHUB_OUTPUT
+            --slot ${{ inputs.slot-name }}
 
-      - name: Deploy using Publish Profile
+      # -----------------------------
+      # 3️⃣a TEST HTTP TRIGGER WITH RETRY
+      # -----------------------------
+      - name: Test HTTP Trigger
         run: |
-          echo "Deploying artifact via publish profile..."
-          curl -X POST \
-            -u "$PUB_PROFILE" \
-            --data-binary @./deploy/functionapp.zip \
-            https://${{ inputs.function-app-name }}-${{ inputs.slot-name }}.scm.azurewebsites.net/api/zipdeploy
+          SLOT_URL="https://${{ inputs.function-app-name }}-${{ inputs.slot-name }}.azurewebsites.net/api/HttpTriggerTest"
+          MAX_RETRIES=5
+          RETRY_DELAY=5
+          attempt=1
+
+          while [ $attempt -le $MAX_RETRIES ]; do
+            echo "Attempt $attempt: Testing HTTP trigger at $SLOT_URL ..."
+            
+            GET_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$SLOT_URL?name=Krishna")
+            POST_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" -d '{"name":"Krishna"}' "$SLOT_URL")
+
+            if [ "$GET_RESPONSE" -eq 200 ] && [ "$POST_RESPONSE" -eq 200 ]; then
+              echo "✅ HTTP Trigger GET and POST requests succeeded"
+              break
+            fi
+
+            echo "❌ Attempt $attempt failed (GET=$GET_RESPONSE, POST=$POST_RESPONSE), retrying in $RETRY_DELAY seconds..."
+            sleep $RETRY_DELAY
+            attempt=$((attempt+1))
+          done
+
+          if [ "$GET_RESPONSE" -ne 200 ] || [ "$POST_RESPONSE" -ne 200 ]; then
+            echo "❌ HTTP Trigger test failed after $MAX_RETRIES attempts"
+            exit 1
+          fi
+
+  # -----------------------------
+  # 4️⃣ APPROVE & SWAP TO PROD
+  # -----------------------------
+  approve_and_swap:
+    name: Approve Swap
+    needs: deploy_to_slot
+    if: ${{ inputs.swap-to-prod == 'true' && inputs.swap-only != 'true' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - run: echo "⏳ Awaiting approval to swap '${{ inputs.slot-name }}' to Production..."
+
+  swap_slot:
+    name: Swap Slot to Production
+    needs: approve_and_swap
+    if: ${{ inputs.swap-to-prod == 'true' && inputs.swap-only != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Swap Slots
+        run: |
+          echo "Swapping slot '${{ inputs.slot-name }}' to Production..."
+          az functionapp deployment slot swap \
+            --resource-group ${{ inputs.resource-group }} \
+            --name ${{ inputs.function-app-name }} \
+            --slot ${{ inputs.slot-name }} \
+            --target-slot Production
+          echo "✅ Swap successful!"

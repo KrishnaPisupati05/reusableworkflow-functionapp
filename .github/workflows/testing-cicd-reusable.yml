@@ -1,0 +1,78 @@
+name: Reusable Build & Deploy Function App
+
+on:
+  workflow_call:
+    inputs:
+      function-app-name:
+        required: true
+        type: string
+      function-app-slot:
+        required: false
+        type: string
+        default: ''
+      functions-folder:
+        required: true
+        type: string
+      node-version:
+        required: false
+        type: string
+        default: '20'
+
+jobs:
+  # ----------------------------
+  # Job 1: Build + Upload Artifact
+  # ----------------------------
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install dependencies
+        run: |
+          cd ${{ inputs.functions-folder }}
+          npm install --production
+        shell: pwsh
+
+      - name: Package Function App as zip
+        run: |
+          cd ${{ inputs.functions-folder }}
+          Compress-Archive -Path * -DestinationPath ..\functionapp.zip
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: functionapp-zip
+          path: ${{ github.workspace }}\functionapp.zip
+
+  # ----------------------------
+  # Job 2: Download Artifact + Deploy
+  # ----------------------------
+  deploy:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: functionapp-zip
+          path: ${{ github.workspace }}
+
+      - name: Deploy to Azure Function App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ inputs.function-app-name }}
+          slot-name: ${{ inputs.function-app-slot }}
+          publish-profile: ${{ secrets.FUNCTION_APP_PUBLISH_PROFILE }}
+          package: ${{ github.workspace }}\functionapp.zip

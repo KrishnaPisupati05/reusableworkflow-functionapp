@@ -1,0 +1,17 @@
+name: Deploy Node.js Function App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  call-reusable-deploy:
+    uses: ./.github/workflows/testing-cicd-reusable.yml
+    with:
+      function-app-name: functionapp-0291
+      function-app-slot: 'test'               # leave empty for production
+      functions-folder: functions  # relative path to your function folder
+      node-version: '18'
+
+    secrets: inherit
