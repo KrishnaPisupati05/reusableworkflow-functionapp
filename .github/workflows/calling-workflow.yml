@@ -53,6 +53,6 @@ jobs:
       swap-to-prod: ${{ github.event.inputs.swap-to-prod }}
       swap-only: ${{ github.event.inputs.swap-only }}
       environment: ${{ github.event.inputs.environment }}
-      working-directory: functions/build.zip
+      working-directory: functionapp/functions
       node-version: 20.x
     secrets: inherit
