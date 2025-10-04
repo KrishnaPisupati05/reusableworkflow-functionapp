@@ -36,9 +36,9 @@ on:
 
 jobs:
   # -----------------------------
-  # 1️⃣ VALIDATE, BUILD & ZIP
+  # 1️⃣ VALIDATE, BUILD & PACKAGE
   # -----------------------------
-  validate_and_build:
+  validate_build_package:
     name: Validate, Build & Package
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
@@ -68,12 +68,21 @@ jobs:
         run: npm run build
         working-directory: ${{ inputs.working-directory }}
 
-      # ✅ Package function app so index.js is at the function folder
-      - name: Zip Function App
+      # ✅ Create clean ZIP for Azure Functions
+      - name: Package Function App
         run: |
           cd ${{ inputs.working-directory }}
-          # Make sure only function folders + host.json are zipped
-          zip -r functionapp.zip . -x "node_modules/*" "*.log" ".git/*"
+          # Remove any unnecessary files first
+          find . -type d -name "node_modules" -exec rm -rf {} +
+          find . -type f -name "*.log" -delete
+          find . -type d -name ".git" -exec rm -rf {} +
+
+          # Create ZIP containing only function folders
+          zip -r functionapp.zip HttpTriggerTest   # <-- add more folders if needed
+
+          # Add host.json at root
+          cp ../host.json .
+          zip -u functionapp.zip host.json
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -86,12 +95,13 @@ jobs:
   # -----------------------------
   approve_before_slot_deploy:
     name: Await Approval
-    needs: validate_and_build
+    needs: validate_build_package
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: echo "⏳ Awaiting approval for deployment to slot '${{ inputs.slot-name }}'"
+      - run: | 
+          echo "⏳ Awaiting approval for deployment to slot '${{ inputs.slot-name }}'"
 
   # -----------------------------
   # 3️⃣ DEPLOY TO SLOT
@@ -126,11 +136,11 @@ jobs:
               --slot ${{ inputs.slot-name }}
           else
             echo "Slot '${{ inputs.slot-name }}' exists. Skipping creation."
-          fi
+          fi  
 
       - name: Deploy Function App ZIP
         run: |
-          echo "Deploying to slot '${{ inputs.slot-name }}'..."
+          echo "Deploying function app to slot '${{ inputs.slot-name }}'..."
           az functionapp deployment source config-zip \
             --src ./deploy/functionapp.zip \
             --name ${{ inputs.function-app-name }} \
@@ -147,7 +157,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: echo "⏳ Awaiting approval to swap '${{ inputs.slot-name }}' to Production..."
+      - run: | 
+          echo "⏳ Awaiting approval to swap '${{ inputs.slot-name }}' to Production..."
 
   swap_slot:
     name: Swap Slot to Production
