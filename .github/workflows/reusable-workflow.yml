@@ -26,9 +26,6 @@ on:
       working-directory:
         required: true
         type: string
-      package-path:
-        required: true
-        type: string
       node-version:
         required: true
         type: string
@@ -41,91 +38,115 @@ jobs:
   # -----------------------------
   # 1️⃣ VALIDATE & BUILD
   # -----------------------------
-  validate:
-    name: Validate & Build
+  validate_and_build:
+    name: Validate & Build ZIP
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
+
+    outputs:
+      package-path: ${{ steps.zip-output.outputs.zip-path }}
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ inputs.node-version }}
-      - run: npm install
-        working-directory: ${{ inputs.working-directory }}
-      - run: npm run lint
-        working-directory: ${{ inputs.working-directory }}
-      - run: npm test
-        working-directory: ${{ inputs.working-directory }}
-      - run: npm run build
+
+      - name: Install Dependencies
+        run: npm install
         working-directory: ${{ inputs.working-directory }}
 
+      - name: Lint Code
+        run: npm run lint
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Run Tests
+        run: npm test
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Build Project
+        run: npm run build --if-present
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Create build.zip
+        id: zip-output
+        run: |
+          cd ${{ inputs.working-directory }}
+          echo "Installing only production dependencies..."
+          npm ci --only=production
+          echo "Creating ZIP package..."
+          zip -r build.zip .
+          echo "zip-path=${{ inputs.working-directory }}/build.zip" >> $GITHUB_OUTPUT
+
   # -----------------------------
-  # 2️⃣ APPROVAL BEFORE SLOT DEPLOY
+  # 2️⃣ APPROVE BEFORE DEPLOY
   # -----------------------------
-  approve_before_slot_deploy:
+  approve_before_deploy:
     name: Await Approval for Slot Deployment
-    needs: validate
+    needs: validate_and_build
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: |
-          echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: ${{ inputs.slot-name }}"
+      - run: echo "⏳ Awaiting approval to deploy to slot '${{ inputs.slot-name }}'"
 
   # -----------------------------
-  # 3️⃣ DEPLOY FUNCTION APP TO CUSTOM SLOT
+  # 3️⃣ DEPLOY FUNCTION APP
   # -----------------------------
   deploy:
-    name: Deploy to Function App Slot
-    needs: approve_before_slot_deploy
+    name: Deploy to Azure Function App
+    needs: [approve_before_deploy, validate_and_build]
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Ensure slot exists
+
+      - name: Ensure Slot Exists
         run: |
-          echo "Checking if slot '${{ inputs.slot-name }}' exists..."
+          echo "Checking slot '${{ inputs.slot-name }}'..."
           if ! az functionapp deployment slot show \
               --name ${{ inputs.function-app-name }} \
               --resource-group ${{ inputs.resource-group }} \
               --slot ${{ inputs.slot-name }} >/dev/null 2>&1; then
-            echo "Slot '${{ inputs.slot-name }}' not found. Creating..."
+            echo "Creating slot '${{ inputs.slot-name }}'..."
             az functionapp deployment slot create \
               --name ${{ inputs.function-app-name }} \
               --resource-group ${{ inputs.resource-group }} \
               --slot ${{ inputs.slot-name }}
           else
-            echo "Slot '${{ inputs.slot-name }}' already exists. Skipping creation."
+            echo "Slot '${{ inputs.slot-name }}' already exists."
           fi
-      - name: Deploy Function App
+
+      - name: Deploy build.zip to Slot
         run: |
-          echo "Deploying to slot '${{ inputs.slot-name }}'..."
+          echo "Deploying build.zip to '${{ inputs.slot-name }}'..."
           az functionapp deployment source config-zip \
-            --src ${{ inputs.package-path }} \
+            --src ${{ needs.validate_and_build.outputs.package-path }} \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }}
+          echo "✅ Deployment complete!"
 
   # -----------------------------
-  # 4️⃣ APPROVE BEFORE SWAP
+  # 4️⃣ APPROVAL & SWAP LOGIC
   # -----------------------------
   approve_before_swap:
-    name: Await Approval for Swap to Production
+    name: Approve Swap to Production
     needs: deploy
     if: ${{ inputs.swap-only != 'true' && inputs.swap-to-prod == 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production..."
+      - run: echo "⏳ Awaiting approval to swap slot '${{ inputs.slot-name }}' → Production..."
 
-  # -----------------------------
-  # 5️⃣ SWAP SLOT
-  # -----------------------------
   swap:
     name: Swap Slot to Production
     needs: approve_before_swap
@@ -136,30 +157,26 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Swap Slots via CLI
+      - name: Swap Slots
         run: |
-          echo "🔄 Swapping slot '${{ inputs.slot-name }}' to Production..."
           az functionapp deployment slot swap \
-            --resource-group ${{ inputs.resource-group }} \
             --name ${{ inputs.function-app-name }} \
+            --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }} \
             --target-slot Production
-          echo "✅ Swap successful!"
+          echo "✅ Slot swapped to Production!"
 
   # -----------------------------
-  # 6️⃣ APPROVE + SWAP ONLY
+  # 5️⃣ SWAP-ONLY MODE
   # -----------------------------
   approve_before_swap_only:
-    name: Approve Swap Only
+    name: Approve Swap-Only
     if: ${{ inputs.swap-only == 'true' && inputs.swap-to-prod == 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: echo "⏳ Awaiting approval to swap ONLY slot '${{ inputs.slot-name }}' to Production..."
+      - run: echo "⏳ Awaiting approval to swap existing slot '${{ inputs.slot-name }}' → Production..."
 
-  # -----------------------------
-  # 7️⃣ SWAP ONLY JOB
-  # -----------------------------
   swap_only:
     name: Swap Slot Only
     needs: approve_before_swap_only
@@ -170,12 +187,11 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Swap Slots via CLI
+      - name: Swap Slots
         run: |
-          echo "🔄 Swapping slot '${{ inputs.slot-name }}' to Production..."
           az functionapp deployment slot swap \
-            --resource-group ${{ inputs.resource-group }} \
             --name ${{ inputs.function-app-name }} \
+            --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }} \
             --target-slot Production
-          echo "✅ Swap successful!"
+          echo "✅ Swap-only operation successful!"

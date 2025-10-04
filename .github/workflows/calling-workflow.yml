@@ -54,6 +54,5 @@ jobs:
       swap-only: ${{ github.event.inputs.swap-only }}
       environment: ${{ github.event.inputs.environment }}
       working-directory: functions
-      package-path: functions/build.zip
       node-version: 18.x
     secrets: inherit
