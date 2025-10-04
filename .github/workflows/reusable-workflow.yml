@@ -71,13 +71,13 @@ jobs:
       - name: Zip Function App
         run: |
           cd ${{ inputs.working-directory }}
-          zip -r ../functionapp.zip .   # ✅ Dot ensures correct root structure
+          zip -r functionapp.zip .      # ✅ ZIP inside working directory
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: functionapp-artifact
-          path: ../functionapp.zip
+          path: ${{ inputs.working-directory }}/functionapp.zip   # ✅ no ".."
 
   # -----------------------------
   # 2️⃣ APPROVE BEFORE SLOT DEPLOY
@@ -105,7 +105,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: functionapp-artifact
-          path: ./deploy
+          path: ./deploy   # ✅ download to folder inside runner
 
       - name: Azure Login
         uses: azure/login@v2
