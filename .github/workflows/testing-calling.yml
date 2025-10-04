@@ -1,17 +1,31 @@
-name: Deploy Node.js Function App
+name: Manual Deploy Node.js Function App
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      function-app-name:
+        description: 'Azure Function App Name'
+        required: true
+      function-app-slot:
+        description: 'Deployment slot (leave empty for production)'
+        required: false
+        default: ''
+      functions-folder:
+        description: 'Path to the function app folder'
+        required: true
+        default: 'functionapp/functions'
+      node-version:
+        description: 'Node.js version'
+        required: false
+        default: '20'
 
 jobs:
-  call-reusable-deploy:
-    uses: ./.github/workflows/testing-cicd-reusable.yml
+  call-reusable:
+    uses: ./.github/workflows/reusable-build-deploy-function-app.yml
     with:
-      function-app-name: functionapp-0291
-      function-app-slot: 'test'               # leave empty for production
-      functions-folder: functions  # relative path to your function folder
-      node-version: '18'
-
-    secrets: inherit
+      function-app-name: ${{ github.event.inputs.function-app-name }}
+      function-app-slot: ${{ github.event.inputs.function-app-slot }}
+      functions-folder: ${{ github.event.inputs.functions-folder }}
+      node-version: ${{ github.event.inputs.node-version }}
+    secrets:
+      FUNCTION_APP_PUBLISH_PROFILE: ${{ secrets.FUNCTION_APP_PUBLISH_PROFILE }}
