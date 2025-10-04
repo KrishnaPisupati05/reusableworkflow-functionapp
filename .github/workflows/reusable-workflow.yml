@@ -89,7 +89,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: ${{ inputs.slot-name }}"
+      - run: | 
+          echo "⏳ Awaiting approval for ${{ inputs.function-app-name }} to deploy to slot: ${{ inputs.slot-name }}"
 
   # -----------------------------
   # 3️⃣ DEPLOY FUNCTION APP TO SLOT
@@ -145,7 +146,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - run: echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production..."
+      - run: | 
+          echo "⏳ Awaiting approval to swap ${{ inputs.slot-name }} slot to Production..."
 
   # -----------------------------
   # 5️⃣ SWAP SLOT TO PROD
