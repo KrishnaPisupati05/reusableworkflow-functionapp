@@ -39,13 +39,9 @@ jobs:
   # 1️⃣ VALIDATE & BUILD
   # -----------------------------
   validate_and_build:
-    name: Validate & Build ZIP
+    name: Validate & Build
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
-
-    outputs:
-      package-path: ${{ steps.zip-output.outputs.zip-path }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -71,14 +67,15 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
 
       - name: Create build.zip
-        id: zip-output
         run: |
           cd ${{ inputs.working-directory }}
-          echo "Installing only production dependencies..."
-          npm ci --only=production
-          echo "Creating ZIP package..."
           zip -r build.zip .
-          echo "zip-path=${{ inputs.working-directory }}/build.zip" >> $GITHUB_OUTPUT
+
+      - name: Upload build.zip as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-build
+          path: ${{ inputs.working-directory }}/build.zip
 
   # -----------------------------
   # 2️⃣ APPROVE BEFORE DEPLOY
@@ -97,12 +94,15 @@ jobs:
   # -----------------------------
   deploy:
     name: Deploy to Azure Function App
-    needs: [approve_before_deploy, validate_and_build]
+    needs: [validate_and_build, approve_before_deploy]
     if: ${{ inputs.swap-only != 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Download build.zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: function-build
+          path: .
 
       - name: Azure Login
         uses: azure/login@v2
@@ -127,9 +127,9 @@ jobs:
 
       - name: Deploy build.zip to Slot
         run: |
-          echo "Deploying build.zip to '${{ inputs.slot-name }}'..."
+          echo "Deploying build.zip to slot '${{ inputs.slot-name }}'..."
           az functionapp deployment source config-zip \
-            --src ${{ needs.validate_and_build.outputs.package-path }} \
+            --src build.zip \
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }}
