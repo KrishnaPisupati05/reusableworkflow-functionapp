@@ -101,7 +101,7 @@ jobs:
             --name ${{ inputs.function-app-name }} \
             --resource-group ${{ inputs.resource-group }} \
             --slot ${{ inputs.slot-name }} \
-            --src ${{ inputs.working-directory }}/
+            --src ${{ inputs.working-directory }}
 
   approve_staging_to_production:
     name: "Approve Staging to Production Swap"
