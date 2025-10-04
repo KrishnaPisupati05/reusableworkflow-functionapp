@@ -6,14 +6,15 @@ on:
       function-app-name:
         description: 'Azure Function App Name'
         required: true
+        default: functionapp-0291
       function-app-slot:
         description: 'Deployment slot (leave empty for production)'
         required: false
-        default: ''
+        default: test
       functions-folder:
         description: 'Path to the function app folder'
         required: true
-        default: 'functionapp/functions'
+        default: functions
       node-version:
         description: 'Node.js version'
         required: false
@@ -21,7 +22,7 @@ on:
 
 jobs:
   call-reusable:
-    uses: ./.github/workflows/reusable-build-deploy-function-app.yml
+    uses: ./.github/workflows/testing-cicd-reusable.yml
     with:
       function-app-name: ${{ github.event.inputs.function-app-name }}
       function-app-slot: ${{ github.event.inputs.function-app-slot }}
