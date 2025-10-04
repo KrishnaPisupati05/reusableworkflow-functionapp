@@ -9,6 +9,7 @@ on:
           Examples: staging, test, qa
           ⚠️ Must always provide a slot. Production is only via swap.
         required: true
+        default: "staging"
       swap-to-prod:
         description: |
           Swap the slot to Production after deployment?
