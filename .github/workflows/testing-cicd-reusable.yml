@@ -17,6 +17,10 @@ on:
         required: false
         type: string
         default: '20'
+    secrets:
+      FUNCTION_APP_PUBLISH_PROFILE:
+        required: true
+          
 
 jobs:
   # ----------------------------

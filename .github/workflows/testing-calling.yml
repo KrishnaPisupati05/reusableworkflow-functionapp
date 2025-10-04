@@ -28,5 +28,5 @@ jobs:
       function-app-slot: ${{ github.event.inputs.function-app-slot }}
       functions-folder: ${{ github.event.inputs.functions-folder }}
       node-version: ${{ github.event.inputs.node-version }}
-    secrets:
-      FUNCTION_APP_PUBLISH_PROFILE: ${{ secrets.FUNCTION_APP_PUBLISH_PROFILE }}
+    secrets: inherit
+     
