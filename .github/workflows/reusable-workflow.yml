@@ -126,6 +126,7 @@ jobs:
               --slot ${{ inputs.slot-name }}
           else
             echo "Slot '${{ inputs.slot-name }}' exists. Skipping creation."
+          fi
 
       - name: Deploy Function App ZIP
         run: |
