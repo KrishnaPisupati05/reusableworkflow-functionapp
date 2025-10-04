@@ -9,7 +9,6 @@ on:
           Examples: staging, test, qa
           ⚠️ Must always provide a slot. Production is only via swap.
         required: true
-        default: "staging"
       swap-to-prod:
         description: |
           Swap the slot to Production after deployment?
@@ -45,7 +44,7 @@ on:
           - app2-prod
 
 jobs:
-  deploy_function_app:
+  deploy-function-app:
     uses: ./.github/workflows/reusable-workflow.yml
     with:
       function-app-name: functionapp-0291
@@ -55,5 +54,6 @@ jobs:
       swap-only: ${{ github.event.inputs.swap-only }}
       environment: ${{ github.event.inputs.environment }}
       working-directory: functions
-      node-version: 20.x
+      package-path: functions/build.zip
+      node-version: 18.x
     secrets: inherit
