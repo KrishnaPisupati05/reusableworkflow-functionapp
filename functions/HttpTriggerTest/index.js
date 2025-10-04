@@ -1,7 +1,7 @@
-module.exports = async function(context, req) {
-    const name = req.query.name || (req.body && req.body.name);
+module.exports = async function (context, req) {
+    context.log('HTTP trigger function processed a request.');
+    const name = req.query.name || (req.body && req.body.name) || 'World';
     context.res = {
-        status: 200,
-        body: name ? `Hello, ${name}!` : "Hello from HttpTriggerTest function!"
+        body: `Hello, ${name}! Function is running.`
     };
 };
