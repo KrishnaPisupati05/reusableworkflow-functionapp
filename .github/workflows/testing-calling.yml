@@ -10,7 +10,7 @@ jobs:
       function-app-name: 'function2910'
       resource-group: 'my-rg'
       slot-name: 'staging'
-      functions-folder: 'functions'
+      functions-folder: 'function'
       node-version: '20'
       swap-after-deploy: false
     secrets: inherit
