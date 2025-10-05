@@ -12,5 +12,4 @@ jobs:
       slot-name: 'staging'
       functions-folder: 'function'
       node-version: '20'
-      swap-after-deploy: false
     secrets: inherit
