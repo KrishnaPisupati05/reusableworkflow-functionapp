@@ -1,10 +1,12 @@
 {
   "name": "custom-node-function-app",
   "version": "1.0.0",
-  "description": "Custom structured Node.js Azure Function App",
+  "description": "Node.js Azure Function App",
   "main": "index.js",
   "scripts": {
     "start": "func start"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@azure/functions": "^4.3.0"
+  }
 }

@@ -36,7 +36,7 @@ jobs:
         working-directory: ${{ inputs.functions-folder }}
         run: |
           npm ci --production
-          zip -r ../functionapp.zip host.json package.json ProcessUser
+          zip -r ../functionapp.zip host.json package.json src
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
