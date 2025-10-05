@@ -10,6 +10,6 @@ jobs:
       function-app-name: 'function2910'
       resource-group: 'my-rg'
       slot-name: 'staging'
-      functions-folder: 'function'
+      functions-folder: 'src'
       node-version: '20'
     secrets: inherit
