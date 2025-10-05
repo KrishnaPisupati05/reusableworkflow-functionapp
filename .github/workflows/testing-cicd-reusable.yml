@@ -1,4 +1,4 @@
-name: Reusable Build & Deploy Function App
+name: Reusable Build & Deploy Function App (Node.js + Slots via CLI)
 
 on:
   workflow_call:
@@ -6,10 +6,12 @@ on:
       function-app-name:
         required: true
         type: string
-      function-app-slot:
-        required: false
+      resource-group:
+        required: true
         type: string
-        default: ''
+      slot-name:
+        required: true
+        type: string
       functions-folder:
         required: true
         type: string
@@ -17,18 +19,14 @@ on:
         required: false
         type: string
         default: '20'
-    secrets:
-      FUNCTION_APP_PUBLISH_PROFILE:
-        required: true
-          
+      swap-after-deploy:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  # ----------------------------
-  # Job 1: Build + Upload Artifact
-  # ----------------------------
   build:
-    runs-on: windows-latest
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,45 +36,66 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
 
-      - name: Install dependencies
+      - name: Install dependencies & package
+        working-directory: ${{ inputs.functions-folder }}
         run: |
-          cd ${{ inputs.functions-folder }}
-          npm install --production
-        shell: pwsh
-
-      - name: Package Function App as zip
-        run: |
-          cd ${{ inputs.functions-folder }}
-          Compress-Archive -Path * -DestinationPath ..\functionapp.zip
-        shell: pwsh
+          npm ci --production
+          zip -r ../functionapp.zip .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: functionapp-zip
-          path: ${{ github.workspace }}\functionapp.zip
+          path: functionapp.zip
 
-  # ----------------------------
-  # Job 2: Download Artifact + Deploy
-  # ----------------------------
   deploy:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     needs: build
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: functionapp-zip
-          path: ${{ github.workspace }}
 
-      - name: Deploy to Azure Function App
-        uses: azure/webapps-deploy@v2
+      - name: Azure Login
+        uses: azure/login@v2
         with:
-          app-name: ${{ inputs.function-app-name }}
-          slot-name: ${{ inputs.function-app-slot }}
-          publish-profile: ${{ secrets.FUNCTION_APP_PUBLISH_PROFILE }}
-          package: ${{ github.workspace }}\functionapp.zip
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Slot if not exists
+        id: create-slot
+        continue-on-error: true
+        run: |
+          echo "Checking if slot exists..."
+          SLOT_EXISTS=$(az functionapp deployment slot list \
+            --name ${{ inputs.function-app-name }} \
+            --resource-group ${{ inputs.resource-group }} \
+            --query "[?name=='${{ inputs.slot-name }}'] | length(@)" -o tsv)
+
+          if [ "$SLOT_EXISTS" -eq 0 ]; then
+            echo "Creating slot: ${{ inputs.slot-name }}"
+            az functionapp deployment slot create \
+              --name ${{ inputs.function-app-name }} \
+              --resource-group ${{ inputs.resource-group }} \
+              --slot ${{ inputs.slot-name }} \
+              --configuration-source ${{ inputs.function-app-name }}
+          else
+            echo "Slot ${{ inputs.slot-name }} already exists."
+          fi
+
+      - name: Deploy Function App Code (ZIP Deploy)
+        run: |
+          az functionapp deployment source config-zip \
+            --resource-group ${{ inputs.resource-group }} \
+            --name ${{ inputs.function-app-name }} \
+            --slot ${{ inputs.slot-name }} \
+            --src functionapp.zip
+
+      - name: Optional Slot Swap (Staging → Production)
+        if: ${{ inputs.swap-after-deploy == true }}
+        run: |
+          echo "Swapping slot '${{ inputs.slot-name }}' with production..."
+          az functionapp deployment slot swap \
+            --resource-group ${{ inputs.resource-group }} \
+            --name ${{ inputs.function-app-name }} \
+            --slot ${{ inputs.slot-name }}
