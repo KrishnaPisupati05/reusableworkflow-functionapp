@@ -1,0 +1,10 @@
+{
+  "name": "custom-node-function-app",
+  "version": "1.0.0",
+  "description": "Custom structured Node.js Azure Function App",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "func start --prefix src"
+  },
+  "dependencies": {}
+}
