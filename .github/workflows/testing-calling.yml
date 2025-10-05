@@ -6,12 +6,15 @@ on:
       function-app-name:
         description: 'Azure Function App name'
         required: true
+        default: 'function2910'
       resource-group:
         description: 'Azure Resource Group name'
         required: true
+        default: 'my-rg'
       slot-name:
         description: 'Deployment slot name'
         required: true
+        default: 'staging'
       build-zip-path:
         description: 'Path to the prebuilt zip file'
         required: true
@@ -27,7 +30,7 @@ on:
 
 jobs:
   deploy-functionapp:
-    uses: ./.github/workflows/reusable-deploy.yml  # path to your reusable workflow
+    uses: ./.github/workflows/testing-cicd-reusable.yml  # path to your reusable workflow
     with:
       function-app-name: function2910
       resource-group: my-rg

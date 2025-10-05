@@ -21,7 +21,7 @@ on:
       node-version:
         required: false
         type: string
-        default: '18'
+        default: '20'
 
 jobs:
   scan-and-deploy:
