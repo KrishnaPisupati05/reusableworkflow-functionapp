@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies & package
         working-directory: ${{ inputs.functions-folder }}
         run: |
-          npm ci --production
+          npm install --production
           zip -r ../functionapp.zip host.json package.json src
 
       - name: Upload artifact
