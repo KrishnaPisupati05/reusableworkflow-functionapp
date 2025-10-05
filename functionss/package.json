@@ -2,7 +2,7 @@
   "name": "custom-node-function-app",
   "version": "1.0.0",
   "description": "Node.js Azure Function App",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "start": "func start"
   },
