@@ -123,6 +123,23 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Ensure slot exists (create if missing)
+        run: |
+          SLOT_EXISTS=$(az functionapp deployment slot list \
+            --resource-group "${{ inputs.rg_name }}" \
+            --name "${{ inputs.functionapp_name }}" \
+            --query "[?name=='${{ inputs.slot_name }}']" \
+            --output tsv)
+          if [ -z "$SLOT_EXISTS" ]; then
+            echo "Slot '${{ inputs.slot_name }}' not found. Creating..."
+            az functionapp deployment slot create \
+              --resource-group "${{ inputs.rg_name }}" \
+              --name "${{ inputs.functionapp_name }}" \
+              --slot "${{ inputs.slot_name }}"
+          else
+            echo "Slot '${{ inputs.slot_name }}' already exists."
+          fi
+
       - name: Deploy ZIP to Azure Function App slot
         run: |
           az functionapp deployment source config-zip \

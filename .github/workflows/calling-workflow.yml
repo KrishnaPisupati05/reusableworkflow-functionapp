@@ -8,11 +8,19 @@ on:
         required: true
       deploy_to_slot:
         description: "Deploy to custom slot? (true/false)"
+        type: choice
         required: true
         default: "false"
+        options:
+          - true
+          - false
       swap_to_prod:
         description: "Swap slot to production? (true/false)"
         required: true
+        type: choice
+        options:
+          - true
+          - false
         default: "false"
       approve_deploy_env:
         description: GitHub Environment for approval-Deploy to Custom SLOT
