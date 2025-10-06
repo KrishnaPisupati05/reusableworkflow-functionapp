@@ -162,7 +162,7 @@ jobs:
 
   swap_slot_to_production:
     name: "Swap: Slot to Production"
-     if: ${{ inputs.deploy_to_slot != 'true' && inputs.swap_to_prod == 'true' }}
+    if: ${{ inputs.deploy_to_slot != 'true' && inputs.swap_to_prod == 'true' }}
     runs-on: ubuntu-latest
     needs: [approval_swap]
     steps:
