@@ -40,7 +40,7 @@ jobs:
     with:
       node_version: "20"
       function_app_folder: "AzureFunctions"
-      rg_name: "my-rg"
+      rg_name: "test-rg"
       functionapp_name: "function-2910"
       slot_name: ${{ github.event.inputs.slot_name }}
       deploy_to_slot: ${{ github.event.inputs.deploy_to_slot }}
