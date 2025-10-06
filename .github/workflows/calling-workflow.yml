@@ -3,19 +3,6 @@ name: "Dispatch Reusable Azure Function App Workflow"
 on:
   workflow_dispatch:
     inputs:
-      node_version:
-        description: "Node.js version"
-        required: false
-        default: "20"
-      function_app_folder:
-        description: "Relative path to function app folder"
-        required: true
-      rg_name:
-        description: "Azure Resource Group name"
-        required: true
-      functionapp_name:
-        description: "Azure Function App name"
-        required: true
       slot_name:
         description: "Azure Function App Slot name"
         required: true
@@ -49,7 +36,7 @@ on:
 jobs:
   reusable_fapp_pipeline:
     name: "Run Reusable Azure Function App Workflow"
-    uses: ./.github/workflows/reusable-fapp-deploy.yml
+    uses: ./.github/workflows/reusable-workflow.yml
     with:
       node_version: "20"
       function_app_folder: "AzureFunctions"
