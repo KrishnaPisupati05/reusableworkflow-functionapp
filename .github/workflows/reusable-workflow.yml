@@ -18,7 +18,7 @@ on:
       node_version:
         required: false
         type: string
-        default: '18'
+        default: '20'
 
 jobs:
   build-and-deploy:

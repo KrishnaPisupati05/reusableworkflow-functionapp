@@ -11,5 +11,5 @@ jobs:
       resource_group: 'test-rg'
       function_app_name: 'function-2910'
       slot_name: 'staging'
-      node_version: '18'
+      node_version: '20'
     secrets: inherit
