@@ -2,7 +2,6 @@
     "name": "azure-function-nodejs-app",
     "version": "1.0.0",
     "description": "Sample Node.js Azure Function app for testing CI/CD",
-    "main": "index.js",
     "scripts": {
       "test": "echo \"Running tests (this is a placeholder)\"",
       "build": "echo \"Building app (this is a placeholder)\"",
