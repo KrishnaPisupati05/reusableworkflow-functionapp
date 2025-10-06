@@ -5,7 +5,7 @@ on:
 
 jobs:
   deploy:
-    uses: ./.github/workflows/azure-function-nodejs-deploy.yml
+    uses: ./.github/workflows/reusable-workflow.yml
     with:
       function_app_folder: 'AzureFunctions'
       resource_group: 'test-rg'
