@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd ${{ inputs.function_app_folder }}
-          npm ci
+          npm install
 
       - name: Run test, build, and lint scripts
         run: |
