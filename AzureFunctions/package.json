@@ -5,7 +5,8 @@
     "scripts": {
       "test": "echo \"Running tests (this is a placeholder)\"",
       "build": "echo \"Building app (this is a placeholder)\"",
-      "lint": "echo \"Linting files (this is a placeholder)\""
+      "lint": "echo \"Linting files (this is a placeholder)\"",
+      "start": "index.js"
     },
     "keywords": [
       "azure",

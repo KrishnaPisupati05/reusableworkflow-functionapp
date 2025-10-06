@@ -1,30 +1,46 @@
-name: Azure Function Node.js Deploy (Reusable with Artifact)
+name: "Reusable Azure Function App"
 
 on:
   workflow_call:
     inputs:
+      node_version:
+        required: false
+        type: string
+        default: '20'
       function_app_folder:
         required: true
         type: string
-      resource_group:
+      rg_name:
         required: true
         type: string
-      function_app_name:
+      functionapp_name:
         required: true
         type: string
       slot_name:
         required: true
         type: string
-      node_version:
+      deploy_to_slot:
         required: false
         type: string
-        default: '20'
+        default: 'false'
+      swap_to_prod:
+        required: false
+        type: string
+        default: 'false'
+      approve_deploy_env:
+        required: true
+        type: string
+      approve_swap_env:
+        required: true
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
 
 jobs:
-  build:
+  validate_build_and_scan:
+    name: "Validate, Build, Scan & Upload Artifact"
     runs-on: ubuntu-latest
-    outputs:
-      artifact-name: ${{ steps.upload-artifact.outputs.artifact-name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,11 +55,19 @@ jobs:
           cd ${{ inputs.function_app_folder }}
           npm install
 
-      - name: Run test, build, and lint scripts
+      - name: Run tests
         run: |
           cd ${{ inputs.function_app_folder }}
-          npm run test
+          npm test
+
+      - name: Build app
+        run: |
+          cd ${{ inputs.function_app_folder }}
           npm run build
+
+      - name: Lint app
+        run: |
+          cd ${{ inputs.function_app_folder }}
           npm run lint
 
       - name: Create ZIP for deployment
@@ -51,18 +75,45 @@ jobs:
           cd ${{ inputs.function_app_folder }}
           zip -r ../functionapp.zip ./*
 
-      - name: Upload artifact
-        id: upload-artifact
+      - name: Run npm audit (security check)
+        run: |
+          cd ${{ inputs.function_app_folder }}
+          npm audit --audit-level=high --production
+
+      - name: Run trufflehog scan (secrets detection)
+        uses: trufflesecurity/trufflehog@main
+        with:
+          scan_directory: ${{ inputs.function_app_folder }}
+
+      - name: Check for forbidden files in zip (.env, .key, secrets, etc)
+        run: |
+          cd ${{ inputs.function_app_folder }}/..
+          unzip -l functionapp.zip | grep -E '\.env|\.key|secrets|\.pem|\.pfx|\.crt' \
+          && { echo "❌ Forbidden file(s) found in zip!"; exit 1; } \
+          || echo "✅ No forbidden files found in zip."
+
+      - name: Upload function app artifact
         uses: actions/upload-artifact@v4
         with:
           name: functionapp
           path: functionapp.zip
 
-  deploy:
+  approval_deploy:
+    name: "Approval: Deploy to Slot"
+    if: ${{ inputs.deploy_to_slot == 'true' }}
     runs-on: ubuntu-latest
-    needs: build
+    environment: ${{ inputs.approve_deploy_env }}
+    needs: validate_build_and_scan
     steps:
-      - name: Download artifact
+      - run: echo "Waiting for approval to deploy to slot..."
+
+  deploy_to_slot:
+    name: "Deploy: Deploy ZIP to Custom Slot"
+    if: ${{ inputs.deploy_to_slot == 'true' }}
+    runs-on: ubuntu-latest
+    needs: approval_deploy
+    steps:
+      - name: Download function app artifact
         uses: actions/download-artifact@v4
         with:
           name: functionapp
@@ -72,17 +123,42 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create deployment slot if not exists
-        run: |
-          az functionapp deployment slot create \
-            --name "${{ inputs.function_app_name }}" \
-            --resource-group "${{ inputs.resource_group }}" \
-            --slot "${{ inputs.slot_name }}" || echo "Slot may already exist"
-
-      - name: Deploy to Azure Function App slot
+      - name: Deploy ZIP to Azure Function App slot
         run: |
           az functionapp deployment source config-zip \
-            --resource-group "${{ inputs.resource_group }}" \
-            --name "${{ inputs.function_app_name }}" \
+            --resource-group "${{ inputs.rg_name }}" \
+            --name "${{ inputs.functionapp_name }}" \
             --slot "${{ inputs.slot_name }}" \
             --src functionapp.zip
+
+      - name: Echo deploy success
+        run: echo "✅ Deployed to slot ${{ inputs.slot_name }} successfully."
+
+  approval_swap:
+    name: "Approval: Slot Swap to Production"
+    if: ${{ inputs.swap_to_prod == 'true' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.approve_swap_env }}
+    steps:
+      - run: echo "Waiting for approval to swap slot to production..."
+
+  swap_slot_to_production:
+    name: "Swap: Slot to Production"
+    if: ${{ inputs.swap_to_prod == 'true' }}
+    runs-on: ubuntu-latest
+    needs: [approval_swap]
+    steps:
+      - name: Azure CLI login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Swap slot with production
+        run: |
+          az functionapp deployment slot swap \
+            --resource-group "${{ inputs.rg_name }}" \
+            --name "${{ inputs.functionapp_name }}" \
+            --slot "${{ inputs.slot_name }}"
+
+      - name: Echo swap successful
+        run: echo "✅ Slot ${{ inputs.slot_name }} swapped with production."

@@ -1,15 +1,63 @@
-name: Deploy My Node.js Function App
+name: "Dispatch Reusable Azure Function App Workflow"
 
 on:
   workflow_dispatch:
+    inputs:
+      node_version:
+        description: "Node.js version"
+        required: false
+        default: "20"
+      function_app_folder:
+        description: "Relative path to function app folder"
+        required: true
+      rg_name:
+        description: "Azure Resource Group name"
+        required: true
+      functionapp_name:
+        description: "Azure Function App name"
+        required: true
+      slot_name:
+        description: "Azure Function App Slot name"
+        required: true
+      deploy_to_slot:
+        description: "Deploy to custom slot? (true/false)"
+        required: true
+        default: "false"
+      swap_to_prod:
+        description: "Swap slot to production? (true/false)"
+        required: true
+        default: "false"
+      approve_deploy_env:
+        description: GitHub Environment for approval-Deploy to Custom SLOT
+        type: choice
+        required: true
+        options:
+          - app1-test
+          - app1-prod
+          - app2-test
+          - app2-prod
+      approve_swap_env:
+        description: GitHub Environment for approval-Deploy to Production SLOT
+        type: choice
+        required: true
+        options:
+          - app1-test
+          - app1-prod
+          - app2-test
+          - app2-prod
 
 jobs:
-  deploy:
-    uses: ./.github/workflows/reusable-workflow.yml
+  reusable_fapp_pipeline:
+    name: "Run Reusable Azure Function App Workflow"
+    uses: ./.github/workflows/reusable-fapp-deploy.yml
     with:
-      function_app_folder: 'AzureFunctions'
-      resource_group: 'test-rg'
-      function_app_name: 'function-2910'
-      slot_name: 'test01'
-      node_version: '20'
+      node_version: "20"
+      function_app_folder: "AzureFunctions"
+      rg_name: "my-rg"
+      functionapp_name: "function-2910"
+      slot_name: ${{ github.event.inputs.slot_name }}
+      deploy_to_slot: ${{ github.event.inputs.deploy_to_slot }}
+      swap_to_prod: ${{ github.event.inputs.swap_to_prod }}
+      approve_deploy_env: ${{ github.event.inputs.approve_deploy_env }}
+      approve_swap_env: ${{ github.event.inputs.approve_swap_env }}
     secrets: inherit
