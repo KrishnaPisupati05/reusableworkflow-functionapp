@@ -1,58 +1,15 @@
-name: Deploy Function App
+name: Deploy My Node.js Function App
 
 on:
   workflow_dispatch:
-    inputs:
-      slot-name:
-        description: |
-          Name of the slot to deploy to.
-          Examples: staging, test, qa
-          ⚠️ Must always provide a slot. Production is only via swap.
-        required: true
-      swap-to-prod:
-        description: |
-          Swap the slot to Production after deployment?
-          Options:
-            - false → Deploy only to the slot
-            - true  → Deploy then swap to Production
-        type: choice
-        required: true
-        options:
-          - "false"
-          - "true"
-        default: "false"
-      swap-only:
-        description: |
-          Skip deployment and swap slot directly to Production?
-          Options:
-            - false → Normal deployment (with optional swap)
-            - true  → Only swap the existing slot
-        type: choice
-        required: true
-        options:
-          - "false"
-          - "true"
-        default: "false"
-      environment:
-        description: GitHub Environment for approval
-        type: choice
-        required: true
-        options:
-          - app1-test
-          - app1-prod
-          - app2-test
-          - app2-prod
 
 jobs:
-  deploy-function-app:
-    uses: ./.github/workflows/reusable-workflow.yml
+  deploy:
+    uses: ./.github/workflows/azure-function-nodejs-deploy.yml
     with:
-      function-app-name: function-2910
-      resource-group: test-rg
-      slot-name: ${{ github.event.inputs.slot-name }}
-      swap-to-prod: ${{ github.event.inputs.swap-to-prod }}
-      swap-only: ${{ github.event.inputs.swap-only }}
-      environment: ${{ github.event.inputs.environment }}
-      working-directory: functions
-      node-version: 18.x
+      function_app_folder: 'AzureFunctions'
+      resource_group: 'test-rg'
+      function_app_name: 'function-2910'
+      slot_name: 'staging'
+      node_version: '20'
     secrets: inherit
