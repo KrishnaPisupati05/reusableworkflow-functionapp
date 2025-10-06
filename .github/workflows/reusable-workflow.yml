@@ -18,11 +18,7 @@ on:
       node_version:
         required: false
         type: string
-        default: '18'
-
-permissions:
-  id-token: write
-  contents: read
+        default: '20'
 
 jobs:
   build-and-deploy:
