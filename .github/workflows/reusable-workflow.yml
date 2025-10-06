@@ -1,4 +1,4 @@
-name: Azure Function Node.js Deploy (Reusable)
+name: Azure Function Node.js Deploy (Reusable with Artifact)
 
 on:
   workflow_call:
@@ -20,9 +20,15 @@ on:
         type: string
         default: '20'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.upload-artifact.outputs.artifact-name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd ${{ inputs.function_app_folder }}
-          npm install
+          npm ci
 
       - name: Run test, build, and lint scripts
         run: |
@@ -44,10 +50,26 @@ jobs:
           npm run build
           npm run lint
 
-      - name: Zip the Node.js Function App folder
+      - name: Create ZIP for deployment
         run: |
           cd ${{ inputs.function_app_folder }}
           zip -r ../functionapp.zip ./*
+
+      - name: Upload artifact
+        id: upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: functionapp
+          path: functionapp.zip
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: functionapp
 
       - name: Azure CLI login
         uses: azure/login@v1
@@ -67,4 +89,4 @@ jobs:
             --resource-group "${{ inputs.resource_group }}" \
             --name "${{ inputs.function_app_name }}" \
             --slot "${{ inputs.slot_name }}" \
-            --src "./functionapp.zip"
+            --src functionapp.zip
