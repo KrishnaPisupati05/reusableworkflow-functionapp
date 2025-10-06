@@ -40,6 +40,7 @@ on:
 jobs:
   validate_build_and_scan:
     name: "Validate, Build, Scan & Upload Artifact"
+    if: ${{ inputs.swap_to_prod != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -100,7 +101,7 @@ jobs:
 
   approval_deploy:
     name: "Approval: Deploy to Slot"
-    if: ${{ inputs.deploy_to_slot == 'true' }}
+    if: ${{ inputs.swap_to_prod != 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.approve_deploy_env }}
     needs: validate_build_and_scan
@@ -109,7 +110,7 @@ jobs:
 
   deploy_to_slot:
     name: "Deploy: Deploy ZIP to Custom Slot"
-    if: ${{ inputs.deploy_to_slot == 'true' }}
+    if: ${{ inputs.swap_to_prod != 'true' }}
     runs-on: ubuntu-latest
     needs: approval_deploy
     steps:
@@ -153,7 +154,7 @@ jobs:
 
   approval_swap:
     name: "Approval: Slot Swap to Production"
-    if: ${{ inputs.swap_to_prod == 'true' && inputs.deploy_to_slot != 'true' }}
+    if: ${{ inputs.deploy_to_slot != 'true' && inputs.swap_to_prod == 'true' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.approve_swap_env }}
     steps:
@@ -161,7 +162,7 @@ jobs:
 
   swap_slot_to_production:
     name: "Swap: Slot to Production"
-    if: ${{ inputs.swap_to_prod == 'true' && inputs.deploy_to_slot != 'true' }}
+     if: ${{ inputs.deploy_to_slot != 'true' && inputs.swap_to_prod == 'true' }}
     runs-on: ubuntu-latest
     needs: [approval_swap]
     steps:
