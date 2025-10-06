@@ -45,7 +45,7 @@ on:
 
 jobs:
   deploy-function-app:
-    uses: ./.github/workflows/reusable-workflow.yml
+    uses: ./.github/workflows/reusable-flow.yml
     with:
       function-app-name: function-2910
       resource-group: test-rg
@@ -54,5 +54,6 @@ jobs:
       swap-only: ${{ github.event.inputs.swap-only }}
       environment: ${{ github.event.inputs.environment }}
       working-directory: functions
+      package-path: functions/build.zip
       node-version: 18.x
     secrets: inherit
