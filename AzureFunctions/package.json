@@ -1,20 +1,25 @@
 {
-    "name": "azure-function-nodejs-app",
-    "version": "1.0.0",
-    "description": "Sample Node.js Azure Function app for testing CI/CD",
-    "scripts": {
-      "test": "echo \"Running tests (this is a placeholder)\"",
-      "build": "echo \"Building app (this is a placeholder)\"",
-      "lint": "echo \"Linting files (this is a placeholder)\"",
-      "start": "index.js"
-    },
-    "keywords": [
-      "azure",
-      "function",
-      "nodejs"
-    ],
-    "author": "Your Name",
-    "license": "MIT",
-    "devDependencies": {},
-    "dependencies": {}
+  "name": "azure-function-nodejs-app",
+  "version": "1.0.0",
+  "description": "Sample Node.js Azure Function app for testing CI/CD",
+  "scripts": {
+    "test": "echo \"Running tests (this is a placeholder)\"",
+    "build": "echo \"Building app (this is a placeholder)\"",
+    "lint": "echo \"Linting files (this is a placeholder)\"",
+    "start": "index.js"
+  },
+  "keywords": [
+    "azure",
+    "function",
+    "nodejs"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.50.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "moment": "^2.29.4"
   }
+}
