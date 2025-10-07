@@ -42,7 +42,7 @@ on:
           - app2-prod
 
 jobs:
-  reusable_fapp_pipeline:
+  functionapp_workflow:
     name: "Run Reusable Azure Function App Workflow"
     uses: ./.github/workflows/reusable-workflow.yml
     with:

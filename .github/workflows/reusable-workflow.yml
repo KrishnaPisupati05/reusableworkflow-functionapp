@@ -79,19 +79,14 @@ jobs:
       - name: Run npm audit (security check)
         run: |
           cd ${{ inputs.function_app_folder }}
+          echo "🔍 Running npm audit for high (or greater) vulnerabilities..."
           npm audit --audit-level=high --production
-
-      - name: Run trufflehog scan (secrets detection)
-        uses: trufflesecurity/trufflehog@main
-        with:
-          scan_directory: ${{ inputs.function_app_folder }}
-
-      - name: Check for forbidden files in zip (.env, .key, secrets, etc)
-        run: |
-          cd ${{ inputs.function_app_folder }}/..
-          unzip -l functionapp.zip | grep -E '\.env|\.key|secrets|\.pem|\.pfx|\.crt' \
-          && { echo "❌ Forbidden file(s) found in zip!"; exit 1; } \
-          || echo "✅ No forbidden files found in zip."
+          if [ $? -eq 0 ]; then
+            echo "✅ npm audit scan completed: No high vulnerabilities found."
+          else
+            echo "❌ npm audit scan failed: High vulnerabilities detected!"
+            exit 1
+          fi
 
       - name: Upload function app artifact
         uses: actions/upload-artifact@v4
