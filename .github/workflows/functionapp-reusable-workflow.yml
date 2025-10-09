@@ -99,7 +99,7 @@ jobs:
     if: ${{ inputs.deploy_to_prod == true
            && inputs.trigger_event == 'workflow_dispatch'
            && github.ref_name == 'master' }}
-    environment: ${{ format('prod-{0}', inputs.application) }}
+    environment: ${{ inputs.application) }}
     env:
       FUNCTION_APP_NAME: ${{ inputs.prod_function_app_name }}
     steps:
