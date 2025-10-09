@@ -84,7 +84,6 @@ jobs:
     name: Approval (Prod only)
     runs-on: ubuntu-latest
     needs: validate
-    # If prod -> 'Production' (protected); else a no-review environment
     environment:
       name: ${{ needs.validate.outputs.is_prod == 'true' && 'Production'  }}
     steps:
