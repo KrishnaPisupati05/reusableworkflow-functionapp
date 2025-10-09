@@ -103,10 +103,11 @@ jobs:
       FUNCTION_APP_NAME: ${{ inputs.prod_function_app_name }}
     steps:
       - uses: actions/checkout@v4
-      - name: Zip source
+      - uses: actions/checkout@v4
+      - name: Create ZIP for deployment
         run: |
-          cd "${{ inputs['source-path'] }}"
-          zip -r ../functionapp.zip . -x ".git/*"
+          cd ${{ inputs.functionapp_folder }}
+          zip -r ../functionapp.zip ./*
       - name: Deploy (PROD)
         uses: Azure/functions-action@v1
         with:
