@@ -27,10 +27,9 @@ on:
         required: false
         type: string
         description: "Function App name for PROD"
-      source-path:
+      functionapp_folder:
         required: false
         type: string
-        default: "."
         description: "Folder to zip and deploy"
     secrets:
       PUBLISH_PROFILE_TEST:
@@ -43,11 +42,12 @@ jobs:
     name: Validate / Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ inputs.node-version }}
-          cache: npm
+          node-version: ${{ inputs.node_version }}
       - name: Install
         run: npm install
       - name: Build
@@ -68,10 +68,10 @@ jobs:
       FUNCTION_APP_NAME: ${{ inputs.test_function_app_name }}
     steps:
       - uses: actions/checkout@v4
-      - name: Zip source
+      - name: Create ZIP for deployment
         run: |
-          cd "${{ inputs['source-path'] }}"
-          zip -r ../functionapp.zip . -x ".git/*"
+          cd ${{ inputs.functionapp_folder }}
+          zip -r ../functionapp.zip ./*
       - name: Deploy (TEST)
         uses: Azure/functions-action@v1
         with:
