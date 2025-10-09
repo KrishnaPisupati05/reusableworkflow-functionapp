@@ -64,7 +64,7 @@ jobs:
     name: Deploy TEST
     runs-on: ubuntu-latest
     needs: validate
-    if: contains(env.branches, github.ref_name)
+   if: ${{ inputs.deploy_to_prod == false && inputs.trigger_event == 'push' && contains(fromJSON(env.branches), github.ref_name) }}
     env:
       FUNCTION_APP_NAME: ${{ inputs.test_function_app_name }}
     steps:
