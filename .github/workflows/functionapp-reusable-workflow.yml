@@ -75,8 +75,7 @@ jobs:
     name: Deploy TEST
     runs-on: ubuntu-latest
     needs: validate
-    if: ${{ inputs.deploy_to_prod == false
-           && inputs.trigger_event == 'push'
+    if: ${{ inputs.trigger_event == 'push'
            && contains(fromJSON('["dev","devfeatures","development"]'), github.ref_name) }}
     env:
       FUNCTION_APP_NAME: ${{ inputs.test_function_app_name }}
