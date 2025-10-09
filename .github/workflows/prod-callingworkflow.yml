@@ -6,8 +6,11 @@ on:
       deploy_to_prod:
         description: "Set true to deploy to prod (must run on master branch)"
         required: true
-        type: boolean
+        type: choice
         default: false
+        options:
+          - true
+          - false
       application:
         description: "Application ID (e.g. app-1, app-2)"
         required: true

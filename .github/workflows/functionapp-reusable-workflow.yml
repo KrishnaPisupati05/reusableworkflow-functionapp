@@ -9,7 +9,7 @@ on:
         description: "Original event name from caller (github.event_name)"
       deploy_to_prod:
         required: true
-        type: boolean
+        type: string
         description: "True only for manual prod deployment"
       application:
         required: false
