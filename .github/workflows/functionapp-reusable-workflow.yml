@@ -1,4 +1,4 @@
-name: Reusable Function App Deploy (Branch-based, Approval only for Production)
+name: Reusable Function App Deploy 
 
 on:
   workflow_call:
@@ -22,7 +22,7 @@ on:
         required: false
         type: string
       deploy_to_prod:
-        description: "Set to true to indicate you intend to deploy to production."
+        description: "Deploy-->Production  Set to True"
         required: false
         type: string
     secrets:
