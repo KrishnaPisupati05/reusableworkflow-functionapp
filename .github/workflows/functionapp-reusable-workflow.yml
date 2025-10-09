@@ -30,13 +30,15 @@ on:
       source-path:
         required: false
         type: string
-        default: "."
         description: "Folder to zip and deploy"
     secrets:
       PUBLISH_PROFILE_TEST:
         required: false
       PUBLISH_PROFILE_PROD:
         required: false
+
+  env:
+    branches: "[dev,devfeatures,development]"
 
 jobs:
 
@@ -62,7 +64,7 @@ jobs:
     name: Deploy TEST
     runs-on: ubuntu-latest
     needs: validate
-    if: ${{ inputs.deploy_to_prod == false && inputs.trigger_event == 'push' && contains(fromJSON('["dev","development","devfeatures"]'), github.ref_name) }}
+    if: contains(env.branches, github.ref_name)
     env:
       FUNCTION_APP_NAME: ${{ inputs.test_function_app_name }}
     steps:
