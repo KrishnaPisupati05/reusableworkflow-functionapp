@@ -37,8 +37,8 @@ on:
       PUBLISH_PROFILE_PROD:
         required: false
 
-  env:
-    branches: "[dev,devfeatures,development]"
+env:
+  branches: "[dev,devfeatures,development]"
 
 jobs:
 
