@@ -19,7 +19,7 @@ jobs:
     uses: ./.github/workflows/functionapp-reusable-workflow.yml
     with:
       environment: ${{ inputs.environment }}
-      functionapp_folder: api
+      functionapp_folder: AzureFunctions
       node-version: 20.x
       test_function_app_name: test-functionapp-01
       prod_function_app_name: prod-functionapp-05
