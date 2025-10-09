@@ -104,7 +104,7 @@ jobs:
     needs: [validate, approval]
     if: |
       needs.validate.outputs.is_prod == 'true' ||
-      contains(fromJSON('["dev","devfeatures","development"]'), github.ref_name) }}
+      contains(fromJSON('["dev","devfeatures","development"]'), github.ref_name)
     env:
       IS_PROD: ${{ needs.validate.outputs.is_prod }}
       FUNCTION_APP_NAME: ${{ needs.validate.outputs.is_prod == 'true' && inputs.prod_function_app_name || inputs.test_function_app_name }}
