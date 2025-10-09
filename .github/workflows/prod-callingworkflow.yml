@@ -7,7 +7,6 @@ on:
         description: "Set true to deploy to prod (must run on master branch)"
         required: true
         type: choice
-        default: false
         options:
           - true
           - false
