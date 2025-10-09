@@ -8,9 +8,9 @@ on:
         required: true
         type: choice
         default: false
-          options:
-            - true
-            - false
+        options:
+          - true
+          - false
       application:
         description: "Application ID (e.g. app-1, app-2)"
         required: true
