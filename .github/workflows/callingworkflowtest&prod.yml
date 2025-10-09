@@ -1,0 +1,28 @@
+name: Invoke Reusable Function App Deploy
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+      - devfeatures
+      - development
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Set 'prod' to force production; leave empty for branch logic."
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/functionapp-reusable-workflow.yml
+    with:
+      environment: ${{ inputs.environment }}
+      functionapp_folder: AzureFunctions
+      node-version: 20.x
+      test_function_app_name: test-functionapp-01
+      prod_function_app_name: prod-functionapp-05
+    secrets:
+      PUBLISH_PROFILE_TEST: ${{ secrets.PUBLISH_PROFILE_TEST }}
+      PUBLISH_PROFILE_PROD: ${{ secrets.PUBLISH_PROFILE_PROD }}

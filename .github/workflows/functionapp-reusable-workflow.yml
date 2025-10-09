@@ -1,120 +1,153 @@
-name: Reusable Function App Deploy (Minimal – No Enforcement, Simplified)
+name: Reusable Function App Deploy (Unified)
 
 on:
   workflow_call:
     inputs:
-      trigger_event:
-        required: true
-        type: string
-        description: "Original event name from caller (github.event_name)"
-      deploy_to_prod:
-        required: true
-        type: string
-        description: "True only for manual prod deployment"
-      application:
+      environment:
+        description: "Set to 'prod' to force production deployment; otherwise branch logic decides (master => prod)."
         required: false
         type: string
-        description: "App identifier (used for prod environment naming, e.g. app-1)"
+        default: ""
       node-version:
+        description: "Node.js version."
         required: false
         type: string
         default: "20.x"
-      test_function_app_name:
-        required: false
-        type: string
-        description: "Function App name for TEST"
-      prod_function_app_name:
-        required: false
-        type: string
-        description: "Function App name for PROD"
       functionapp_folder:
+        description: "Folder containing the Function App project."
         required: false
         type: string
-        description: "Folder to zip and deploy"
+        default: "."
+      test_function_app_name:
+        description: "Azure Function App name for TEST deployments."
+        required: false
+        type: string
+      prod_function_app_name:
+        description: "Azure Function App name for PROD deployments."
+        required: false
+        type: string
     secrets:
       PUBLISH_PROFILE_TEST:
         required: false
       PUBLISH_PROFILE_PROD:
         required: false
 
-<<<<<<< main
-=======
+env:
+  TEST_BRANCHES_JSON: '["dev","devfeatures","development"]'
 
->>>>>>> local
 jobs:
+
   validate:
     name: Validate / Build
     runs-on: ubuntu-latest
+    outputs:
+      is_prod: ${{ steps.flags.outputs.is_prod }}
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Determine prod flag
+        id: flags
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          if [ "${{ inputs.environment }}" = "prod" ] || [ "${BRANCH}" = "master" ]; then
+            echo "is_prod=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prod=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Branch: ${BRANCH}"
+          echo "Forced environment input: '${{ inputs.environment }}'"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ inputs.node_version }}
+          node-version: ${{ inputs['node-version'] }}
 
       - name: Install dependencies
-        run: |
-          cd ${{ inputs.functionapp_folder }}
-          npm install
+        working-directory: ${{ inputs.functionapp_folder }}
+        run: npm ci
 
       - name: Run tests
-        run: |
-          cd ${{ inputs.functionapp_folder }}
-          npm test
+        working-directory: ${{ inputs.functionapp_folder }}
+        run: npm test
 
-      - name: Build app
-        run: |
-          cd ${{ inputs.functionapp_folder }}
-          npm run build
+      - name: Lint
+        working-directory: ${{ inputs.functionapp_folder }}
+        run: npm run lint --if-present
 
-      - name: Lint app
-        run: |
-          cd ${{ inputs.functionapp_folder }}
-          npm run lint
+      - name: Build
+        working-directory: ${{ inputs.functionapp_folder }}
+        run: npm run build --if-present
 
 
-  deploy-test:
-    name: Deploy TEST
+  approval:
+    name: Approval (Prod only)
     runs-on: ubuntu-latest
     needs: validate
-    if: ${{ inputs.trigger_event == 'push'
-           && contains(fromJSON('["dev","devfeatures","development"]'), github.ref_name) }}
-    env:
-      FUNCTION_APP_NAME: ${{ inputs.test_function_app_name }}
+    # If prod -> 'Production' (protected); else a no-review environment
+    environment:
+      name: ${{ needs.validate.outputs.is_prod == 'true' && 'Production'  }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Create ZIP for deployment
+      - name: Approval context
         run: |
-          cd ${{ inputs.functionapp_folder }}
-          zip -r ../functionapp.zip ./*
-      - name: Deploy (TEST)
+          echo "Production flag: ${{ needs.validate.outputs.is_prod }}"
+          if [ "${{ needs.validate.outputs.is_prod }}" = "true" ]; then
+            echo "Awaiting (or passed) environment approval for Production."
+          else
+            echo "Non-prod deployment path (auto-approved)."
+          fi
+
+
+  deploy:
+    name: Deploy (Test or Prod)
+    runs-on: ubuntu-latest
+    needs: [validate, approval]
+    if: |
+      needs.validate.outputs.is_prod == 'true' ||
+      contains(fromJSON('["dev","devfeatures","development"]'), github.ref_name)
+    env:
+      IS_PROD: ${{ needs.validate.outputs.is_prod }}
+      FUNCTION_APP_NAME: ${{ needs.validate.outputs.is_prod == 'true' && inputs.prod_function_app_name || inputs.test_function_app_name }}
+      PUBLISH_PROFILE: ${{ needs.validate.outputs.is_prod == 'true' && secrets.PUBLISH_PROFILE_PROD || secrets.PUBLISH_PROFILE_TEST }}
+      FUNCTIONAPP_FOLDER: ${{ inputs.functionapp_folder }}
+    steps:
+      - name: Preconditions
+        run: |
+          if [ "${IS_PROD}" = "true" ]; then
+            [ -n "${FUNCTION_APP_NAME}" ] || { echo "::error::prod_function_app_name is required for production."; exit 1; }
+            [ -n "${PUBLISH_PROFILE}" ] || { echo "::error::PUBLISH_PROFILE_PROD secret not provided."; exit 1; }
+          else
+            [ -n "${FUNCTION_APP_NAME}" ] || { echo "::error::test_function_app_name is required for test deployment."; exit 1; }
+            [ -n "${PUBLISH_PROFILE}" ] || { echo "::error::PUBLISH_PROFILE_TEST secret not provided."; exit 1; }
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package Function App
+        run: |
+          set -e
+          cd "${FUNCTIONAPP_FOLDER}"
+          zip -r ../functionapp.zip . -x "*.git*"
+          ls -lh ../functionapp.zip
+
+      - name: Show deployment context
+        run: |
+          echo "Branch: ${GITHUB_REF_NAME}"
+          echo "IS_PROD: ${IS_PROD}"
+          echo "Function App: ${FUNCTION_APP_NAME}"
+
+      - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ env.FUNCTION_APP_NAME }}
           package: functionapp.zip
-          publish-profile: ${{ secrets.PUBLISH_PROFILE_TEST }}
+          publish-profile: ${{ env.PUBLISH_PROFILE }}
 
-  deploy-prod:
-    name: Deploy PROD
-    runs-on: ubuntu-latest
-    needs: validate
-    if: ${{ inputs.deploy_to_prod == true
-           && inputs.trigger_event == 'workflow_dispatch'
-           && github.ref_name == 'master' }}
-    environment: ${{ format('prod-{0}', inputs.application) }}
-    env:
-      FUNCTION_APP_NAME: ${{ inputs.prod_function_app_name }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Zip source
+      - name: Success Echo
         run: |
-          cd "${{ inputs['source-path'] }}"
-          zip -r ../functionapp.zip . -x ".git/*"
-      - name: Deploy (PROD)
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ env.FUNCTION_APP_NAME }}
-          package: functionapp.zip
-          publish-profile: ${{ secrets.PUBLISH_PROFILE_PROD }}
+          if [ "${IS_PROD}" = "true" ]; then
+            echo "✅ Production deployment succeeded for ${FUNCTION_APP_NAME}"
+          else
+            echo "✅ Test deployment succeeded for ${FUNCTION_APP_NAME}"
+          fi
