@@ -1,4 +1,4 @@
-name: Invoke Reusable Function App Deploy
+name: Deploy To Function APP (Test/Prod)
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy_to_prod:
-        description: "Set to true to indicate you intend to deploy to production.
+        description: "Deploy-->Production  Set to True.
         required: false
         type: choice
         options:
@@ -22,7 +22,7 @@ jobs:
     uses: ./.github/workflows/functionapp-reusable-workflow.yml
     with:
       deploy_to_prod: ${{ inputs.deploy_to_prod }}
-      functionapp_folder: AzureFunctions
+      working_directory: AzureFunctions
       node-version: 20.x
       test_function_app_name: test-functionapp-01
       prod_function_app_name: prod-functionapp-05

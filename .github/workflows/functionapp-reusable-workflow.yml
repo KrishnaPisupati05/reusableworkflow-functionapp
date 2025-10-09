@@ -8,8 +8,8 @@ on:
         required: false
         type: string
         default: "20.x"
-      functionapp_folder:
-        description: "Folder containing the Function App project."
+      working_directory:
+        description: "Working directory containing the Function App project."
         required: false
         type: string
         default: "."
@@ -22,7 +22,7 @@ on:
         required: false
         type: string
       deploy_to_prod:
-        description: "Set to true to indicate you intend to deploy to production.
+        description: "Set to true to indicate you intend to deploy to production."
         required: false
         type: string
     secrets:
@@ -39,22 +39,12 @@ jobs:
   validate:
     name: Validate / Build
     runs-on: ubuntu-latest
-    outputs:
-      is_prod: ${{ steps.flags.outputs.is_prod }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Determine prod flag (master branch only)
-        id: flags
-        run: |
-          BRANCH="${GITHUB_REF_NAME}"
-          if [ "${BRANCH}" = "master" ]; then
-            echo "is_prod=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_prod=false" >> "$GITHUB_OUTPUT"
-          fi
-          echo "Branch: ${BRANCH}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -62,32 +52,27 @@ jobs:
           node-version: ${{ inputs['node-version'] }}
 
       - name: Install dependencies
-        working-directory: ${{ inputs.functionapp_folder }}
         run: npm ci
 
       - name: Run tests
-        working-directory: ${{ inputs.functionapp_folder }}
         run: npm test
 
       - name: Lint
-        working-directory: ${{ inputs.functionapp_folder }}
         run: npm run lint --if-present
 
       - name: Build
-        working-directory: ${{ inputs.functionapp_folder }}
         run: npm run build --if-present
 
   approval:
     name: Approval (Prod only)
     runs-on: ubuntu-latest
     needs: validate
-    if: ${{ needs.validate.outputs.is_prod == 'true' }}
+    if: ${{ github.ref_name == 'master' }}
     environment:
       name: Production
     steps:
       - name: Approval context
-        run: |
-          echo "Production deployment requires manual approval."
+        run: echo "Production deployment requires manual approval."
 
   deploy:
     name: Deploy (Test or Prod)
@@ -100,16 +85,15 @@ jobs:
       IS_PROD: ${{ github.ref_name == 'master' }}
       FUNCTION_APP_NAME: ${{ github.ref_name == 'master' && inputs.prod_function_app_name || inputs.test_function_app_name }}
       PUBLISH_PROFILE: ${{ github.ref_name == 'master' && secrets.PUBLISH_PROFILE_PROD || secrets.PUBLISH_PROFILE_TEST }}
-      FUNCTIONAPP_FOLDER: ${{ inputs.functionapp_folder }}
+      WORKING_DIRECTORY: ${{ inputs.working_directory }}
     steps:
-  
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Package Function App
         run: |
           set -e
-          cd "${FUNCTIONAPP_FOLDER}"
+          cd "${WORKING_DIRECTORY}"
           zip -r ../functionapp.zip . -x "*.git*"
           ls -lh ../functionapp.zip
 
