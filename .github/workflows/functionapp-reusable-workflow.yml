@@ -37,6 +37,10 @@ on:
       PUBLISH_PROFILE_PROD:
         required: false
 
+<<<<<<< main
+=======
+
+>>>>>>> local
 jobs:
   validate:
     name: Validate / Build
