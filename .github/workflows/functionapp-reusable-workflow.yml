@@ -31,9 +31,6 @@ on:
       PUBLISH_PROFILE_PROD:
         required: false
 
-env:
-  TEST_BRANCHES_JSON: '["dev","devfeatures","development"]'
-
 jobs:
 
   validate:
