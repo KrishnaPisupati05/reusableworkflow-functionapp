@@ -16,7 +16,7 @@ on:
         description: "Prod Function App name"
         required: true
         type: string
-      source_path:
+      functionapp_folder:
         description: "Folder to deploy"
         required: false
 
@@ -28,6 +28,6 @@ jobs:
       deploy_to_prod: ${{ github.event.inputs.deploy_to_prod }}
       application: ${{ github.event.inputs.application }}
       prod_function_app_name: ${{ github.event.inputs.prod_function_app_name }}
-      source-path: AzureFunctions
+      functionapp_folder: AzureFunctions
     secrets:
       PUBLISH_PROFILE_PROD: ${{ secrets.PUBLISH_PROFILE_PROD }}
