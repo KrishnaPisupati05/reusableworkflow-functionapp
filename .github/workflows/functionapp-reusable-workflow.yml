@@ -38,7 +38,6 @@ on:
       PUBLISH_PROFILE_PROD:
         required: false
 
-
 jobs:
 
   validate:
@@ -46,21 +45,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node-version }}
           cache: npm
-
       - name: Install
         run: npm install
-
       - name: Build
         run: npm run build
-
       - name: Test
         run: npm test
-
       - name: Lint
         run: npm run lint
 
@@ -68,11 +62,9 @@ jobs:
     name: Deploy TEST
     runs-on: ubuntu-latest
     needs: validate
-    # Single env block (includes branches + function app name)
+    if: ${{ inputs.deploy_to_prod == false && inputs.trigger_event == 'push' && contains(fromJSON('["dev","development","devfeatures"]'), github.ref_name) }}
     env:
-      TEST_BRANCHES: '["dev","development","devfeatures"]'
       FUNCTION_APP_NAME: ${{ inputs.test_function_app_name }}
-    if: ${{ inputs.deploy_to_prod == false && inputs.trigger_event == 'push' && contains(fromJSON(env.TEST_BRANCHES), github.ref_name) }}
     steps:
       - uses: actions/checkout@v4
       - name: Zip source
