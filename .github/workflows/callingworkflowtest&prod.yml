@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy_to_prod:
-        description: "Deploy-->Production  Set to True.
+        description: "Deploy-->Production  Set to True"
         required: false
         type: choice
         options:
