@@ -1,0 +1,33 @@
+name: Production Deployment (Manual Dispatch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_to_prod:
+        description: "Set true to deploy to prod (must run on master branch)"
+        required: true
+        type: boolean
+        default: false
+      application:
+        description: "Application ID (e.g. app-1, app-2)"
+        required: true
+        type: string
+      prod_function_app_name:
+        description: "Prod Function App name"
+        required: true
+        type: string
+      functionapp_folder:
+        description: "Folder to deploy"
+        required: false
+
+jobs:
+  prod-deploy:
+    uses: ./.github/workflows/functionapp-reusable-workflow.yml
+    with:
+      trigger_event: ${{ github.event_name }}
+      deploy_to_prod: ${{ github.event.inputs.deploy_to_prod }}
+      application: ${{ github.event.inputs.application }}
+      prod_function_app_name: ${{ github.event.inputs.prod_function_app_name }}
+      functionapp_folder: AzureFunctions
+    secrets:
+      PUBLISH_PROFILE_PROD: ${{ secrets.PUBLISH_PROFILE_PROD }}
