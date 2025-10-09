@@ -13,6 +13,7 @@ jobs:
     with:
       trigger_event: ${{ github.event_name }}
       test_function_app_name: test-functionapp-01
+      deploy_to_prod: false
       source-path: AzureFunctions
     secrets:
       PUBLISH_PROFILE_TEST: ${{ secrets.PUBLISH_PROFILE_TEST }}
