@@ -52,7 +52,7 @@ jobs:
           node-version: ${{ inputs['node-version'] }}
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run tests
         run: npm test
@@ -72,7 +72,7 @@ jobs:
       name: ${{ github.ref_name == 'master' && 'Production' || 'auto-approve' }}
     steps:
       - run: | 
-          echo "Approval step running for branch: ${GITHUB_REF_NAME}"
+          echo "Branch: ${GITHUB_REF_NAME}"
 
 
   deploy:
@@ -83,8 +83,8 @@ jobs:
       contains(fromJSON('["master"]'), github.ref_name) ||
       contains(fromJSON('["dev","devfeatures","development"]'), github.ref_name)
     env:
-      FUNCTION_APP_NAME: ${{ github.ref_name == 'master' ? inputs.prod_function_app_name : inputs.test_function_app_name }}
-      PUBLISH_PROFILE: ${{ github.ref_name == 'master' ? secrets.PUBLISH_PROFILE_PROD : secrets.PUBLISH_PROFILE_TEST }}
+      FUNCTION_APP_NAME: ${{ github.ref_name == 'master' && inputs.prod_function_app_name || inputs.test_function_app_name }}
+      PUBLISH_PROFILE: ${{ github.ref_name == 'master' && secrets.PUBLISH_PROFILE_PROD || secrets.PUBLISH_PROFILE_TEST }}
       WORKING_DIRECTORY: ${{ inputs.working_directory }}
     steps:
       - name: Checkout
@@ -103,7 +103,3 @@ jobs:
           app-name: ${{ env.FUNCTION_APP_NAME }}
           package: functionapp.zip
           publish-profile: ${{ env.PUBLISH_PROFILE }}
-
-      - name: Post-deploy message
-        run: | 
-          echo "Deployed to Function App: ${FUNCTION_APP_NAME} (branch: ${GITHUB_REF_NAME})"  
