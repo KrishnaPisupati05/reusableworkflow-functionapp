@@ -24,8 +24,8 @@ jobs:
       deploy_to_prod: ${{ inputs.deploy_to_prod }}
       working_directory: AzureFunctions
       node-version: 20.x
-      test_function_app_name: test-functionapp-01
-      prod_function_app_name: prod-functionapp-05
+      test_function_app_name: test-functionapp-03
+      prod_function_app_name: prod-functionapp-93
     secrets:
       PUBLISH_PROFILE_TEST: ${{ secrets.PUBLISH_PROFILE_TEST }}
       PUBLISH_PROFILE_PROD: ${{ secrets.PUBLISH_PROFILE_PROD }}
